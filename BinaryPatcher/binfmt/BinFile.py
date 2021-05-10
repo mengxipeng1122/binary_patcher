@@ -7,8 +7,9 @@ class BinFile( object ):
     '''
         a abstract class for all binfmtfiles class
     '''
-    def load(self, fn, log_indent = 0): raise NotImplementedError("Should have implemented this ")
-    def write(self, fn, log_indent = 0): raise NotImplementedError("Should have implemented this ")
-    def getName(self, log_indent = 0): raise NotImplementedError("Should have implemented this ")
+    def load(self, fn, log_indent = 0):           raise NotImplementedError("Should have implemented this ")
+    def write(self, fn, log_indent = 0):          raise NotImplementedError("Should have implemented this ")
+    def getName(self, log_indent = 0):            raise NotImplementedError("Should have implemented this ")
+    def updateSymbolMap(self, m, log_indent = 0): raise NotImplementedError("Should have implemented this ")
 
 

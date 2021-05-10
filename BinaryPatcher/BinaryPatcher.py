@@ -14,6 +14,7 @@ class BinaryPatcher(object):
     binfmt      = None
     arch        = None
     log_indent  = 0
+    symbolMap      = {}  # store a function/address map for later patch
 
     def __init__(self, binfmtName:str = ""): # arch can inference from binary format 
         if binfmtName != "":
@@ -31,6 +32,8 @@ class BinaryPatcher(object):
         logInfo(f" {fn} is binary format {obj.getName()} have magic  {fm} ", self.log_indent);
         ok = self.binfmt.load(fn, self.log_indent+1)
         assert ok, f'input file {fn} is not binary format given'
+        self.binfmt.updateSymbolMap(self.symbolMap)
+        logInfo(f" {fn} have {len(self.symbolMap)} symbols ", self.log_indent);
     
     def write(self, fn):
         pass
