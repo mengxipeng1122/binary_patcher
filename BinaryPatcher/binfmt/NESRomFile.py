@@ -10,11 +10,10 @@ class NESRomFile(BinFile):
     def __init__(self):
         pass
 
+    def getName(self):
+        return "NESRomFile"
+
     def load(self, fn, log_indent):
-        with magic.Magic() as m:
-            fm = m.from_buffer(open(fn,'rb').read())
-            if fm == 'application/x-nes-rom': 
-                return True
-        return False
+        return True
 
 

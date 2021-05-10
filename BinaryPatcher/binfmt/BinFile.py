@@ -9,5 +9,6 @@ class BinFile( object ):
     '''
     def load(self, fn, log_indent = 0): raise NotImplementedError("Should have implemented this ")
     def write(self, fn, log_indent = 0): raise NotImplementedError("Should have implemented this ")
+    def getName(self, log_indent = 0): raise NotImplementedError("Should have implemented this ")
 
 
