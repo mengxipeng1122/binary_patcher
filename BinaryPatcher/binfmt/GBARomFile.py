@@ -5,6 +5,7 @@ import sys
 import magic
 
 from .BinFile import BinFile
+from ..arch.Arm import *
 
 class GBARomFile(BinFile):
     def __init__(self):
@@ -15,5 +16,11 @@ class GBARomFile(BinFile):
 
     def load(self, fn, log_indent):
         return True
+
+    def updateSymbolMap(self, m, log_indent = 0): 
+        pass # TODO: 
+
+    def getArch(self):
+        return Arm(True)
 
 

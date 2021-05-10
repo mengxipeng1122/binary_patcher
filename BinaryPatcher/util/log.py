@@ -24,6 +24,10 @@ def logNotice(msg, indent=0):        # display noticeable  info
     
 def logWarn(msg, indent=0):          # display warning info
     Color.pl(f'<P>{" "*indent_space*indent}{msg}')
+
+def logDebug(msg, indent=0):          # display warning info
+    Color.pl(f'<C>{" "*indent_space*indent}{msg}')
+    
     
 def log(msg, indent=0):              # call log.pl directly
     Color.pl(f'{" "*indent_space*indent}{msg}')

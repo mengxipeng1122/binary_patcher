@@ -7,6 +7,7 @@ class BinFile( object ):
     '''
         a abstract class for all binfmtfiles class
     '''
+    def getArch(self):                            raise NotImplementedError("Should have implemented this ")
     def load(self, fn, log_indent = 0):           raise NotImplementedError("Should have implemented this ")
     def write(self, fn, log_indent = 0):          raise NotImplementedError("Should have implemented this ")
     def getName(self, log_indent = 0):            raise NotImplementedError("Should have implemented this ")
