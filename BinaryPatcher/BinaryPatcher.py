@@ -26,15 +26,11 @@ class BinaryPatcher(object):
             fm = magic.Magic().from_buffer(open(fn,'rb').read())
             if fm in bin_fmt_magic_map:
                 obj = bin_fmt_magic_map[fm]()
-                ok = obj.load(fn, self.log_indent+1)
-                if ok:
-                    logInfo(f" {fn} is binary format {obj.getName()} have magic  {fm} ", self.log_indent);
-                    self.binfmt = obj;
-                    return ;
-            raise Exception(f'unsupported binary format for file {fn}')
-        else:
-            ok = self.binfmt.load(fn, self.log_indent+1)
-            assert ok, f'input file {fn} is not binary format {self.binfmtName}'
+                self.binfmt = obj;
+        assert self.binfmt != None, f'unsupported binary format for file {fn}'
+        logInfo(f" {fn} is binary format {obj.getName()} have magic  {fm} ", self.log_indent);
+        ok = self.binfmt.load(fn, self.log_indent+1)
+        assert ok, f'input file {fn} is not binary format given'
     
     def write(self, fn):
         pass

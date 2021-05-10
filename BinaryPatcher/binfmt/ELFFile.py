@@ -17,7 +17,9 @@ class ELFFile(BinFile):
 
     def load(self, fn, log_indent = 0):
         self.binary = lief.parse(fn)
-        return self.binary!=None
+        if self.binary:
+            return True
+        return False
         
         
 
