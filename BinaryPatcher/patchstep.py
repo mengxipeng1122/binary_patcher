@@ -11,47 +11,95 @@ from .util.log import *
 # base class of all patch step
 class PatchStep:
     @decorator_inc_debug_level
-    def __init__(self, info, arch, symbolMap):
+    def __init__(self, info, arch, symbolMap, write_cave_address):
+        self.info          = info
         self.arch          = arch
         self.symbolMap     = symbolMap
-        self.info          = info
+        self.write_cave_address  = write_cave_address
+        self.start_address = self.calAddress(info['startAddress']) if 'startAddress' in info else None
+        self.end_address   = self.calAddress(info['endAddress'  ]) if 'endAddress' in info else None
 
     @decorator_inc_debug_level
     def run(self):
         raise NotImplementedError('Should have implemented this ')
 
     @decorator_inc_debug_level
-    def calAddress(self,text):
-        if text == None: return None
+    def subSymbol(self,text):
         for k, v in self.symbolMap.items():
             text = text.replace('%{'+k+'}%', hex(v))
-        return eval(text)
+        return text
+
+    @decorator_inc_debug_level
+    def calAddress(self,text):
+        if text == None: return None
+        return eval(self.subSymbol(text))
 
 class NopPatchStep(PatchStep):
     ''' 
         handle NomPatch
     ''' 
     @decorator_inc_debug_level
-    def __init__(self, info, arch, binfmt):
-        PatchStep.__init__(self, info, arch, binfmt)
-        ks_arch = arch.ks_arch
-        ks_mode = arch.ks_mode
-        if 'ThumbMode' in info:
-            ThumbMode = info['ThumbMode']
-            ks_mode  = KS_MODE_THUMB if ThumbMode else KS_ARCH_ARM
-        self.ks = Ks(ks_arch, ks_mode)
+    def __init__(self, info, arch, symbolMap, write_cave_address):
+        PatchStep.__init__(self, info, arch, symbolMap, write_cave_address)
+        self.ks = self.arch.getks(info)
          
     @decorator_inc_debug_level
     def run(self):
         # prepare all code 
-        logDebug(f"self.info {self.info} ")
-        start_address = self.calAddress(self.info['startAddress'])
-        end_address   = self.calAddress(self.info['endAddress'  ])
-        nopCode =  self.arch.asmCode(self.ks, self.arch.getNopCode(), start_address)
-        if  end_address == None:
-            yield start_address, nopCode
+        nopCode =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
+        if  self.end_address == None:
+            yield self.start_address, nopCode
         else:
-            for addr in range(start_address, end_address, len(nopCode)):
-                yield addr, nopCode
-                
+            for addr in range(self.start_address, self.end_address, len(nopCode)):
+                yield False, addr, nopCode
+
+class AsmPatchStep(PatchStep):
+    ''' 
+        handle NomPatch
+    ''' 
+    @decorator_inc_debug_level
+    def __init__(self, info, arch, symbolMap, cave_length):
+        PatchStep.__init__(self, info, arch, symbolMap, cave_length)
+        self.ks = self.arch.getks(info)
+        self.asm = info['asm']
+         
+    @decorator_inc_debug_level
+    def run(self):
+        # prepare all code 
+        nopCode =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
+        addr = self.start_address
+        for code in self.asm:
+            logDebug(f'code {code}')
+            inst = self.arch.asmCode(self.ks, self.subSymbol(code), addr)
+            yield False, addr, inst
+            addr += len(inst)
+
+class ParasitePatchStep(PatchStep):
+    ''' 
+        handle ParasitePatch, this patch step put a parasite code into a address space 
+    ''' 
+    @decorator_inc_debug_level
+    def __init__(self, info, arch, symbolMap, write_cave_address):
+        PatchStep.__init__(self, info, arch, symbolMap, write_cave_address)
+        logDebug(f'write_cave_address {write_cave_address}')
+        assert write_cave_address!=None, " write_cave_address == None when do a parasite patch "
+        self.offset             = eval(info['offset']) if 'offset' in info else 0
+        self.src                = info['src']
+        self.compiler           = self.arch.compiler    
+        if 'compiler' in info: self.compiler = info['compiler']
+        self.compile_flags      = self.arch.compile_flags   
+        if 'cflags' in info: self.compile_flags+=f' {info["cflags"]}'
+
+    @decorator_inc_debug_level
+    def run(self):
+        write_address =self.write_cave_address
+        logDebug(f'write_cave_address -- {hex(write_address)}')
+        objfn = os.path.join('/tmp', os.path.basename(f'{self.src}.o'))
+        workdir = os.path.dirname(self.src)
+        if workdir == ' '*len(workdir): workdir = '.'
+        self.arch.compileObjectFile(self.src, objfn, workdir, self.compiler, f'{self.compile_flags}  -D WRITE_ADDRESS={hex(write_address)}', self.info)
+        bs, fun_addr = self.arch.linkObjectFile(objfn, write_address, self.symbolMap, self.info);
+        yield (True, write_address, bs)
+
+
 

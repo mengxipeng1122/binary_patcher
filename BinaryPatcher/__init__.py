@@ -7,7 +7,9 @@ from .patchstep import *
 # all patch step classes 
 
 patchstep_map = {
-    'NopPatch' : NopPatchStep,
+    'NopPatch'          : NopPatchStep,
+    'AsmPatch'          : AsmPatchStep,
+    'ParasitePatch'     : ParasitePatchStep,
     }
 
 
