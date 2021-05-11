@@ -15,3 +15,16 @@ This function get a aligned address
   return o
 
 
+def getStr(s, READNAMELEN=80):
+  '''
+This function get a string from bytes
+must return string 
+Parameter:
+  s -- input bytes
+  READNAMELEN -- assume the size of result string is not larger then READNAMELEN
+  '''
+  idx = s[:READNAMELEN].find(b'\0')
+  return s[:idx].decode('utf-8')
+
+
+

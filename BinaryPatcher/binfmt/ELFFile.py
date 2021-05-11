@@ -623,11 +623,106 @@ class ELFFile(BinFile):
     def getName(self):
         return "ELFFile"
 
+    def rebuild(self):
+        binary = self.binary
+        e_CLASS     = binary.header.identity_class;
+        e_phnum     = binary.header.numberof_segments
+        e_phentsize = binary.header.program_header_size
+        e_phoff     = binary.header.program_header_offset
+        e_shnum     = binary.header.numberof_sections
+        e_shentsize = binary.header.section_header_size
+        e_shoff     = binary.header.section_header_offset
+        binbs       = self.binbs
+        info        = self.info
+        ################################################################################
+        # handle ctors
+        #  show origin ctors
+        for t, dyn in enumerate(binary.dynamic_entries): 
+            if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAY: INIT_ARRAY = dyn.value
+            if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAYSZ: INIT_ARRAYSZ = dyn.value
+        INIT_ARRAY_OFFSET = binary.virtual_address_to_offset(INIT_ARRAY)
+        ctors = list(struct.unpack('I'*(INIT_ARRAYSZ//4), binbs[INIT_ARRAY_OFFSET:INIT_ARRAY_OFFSET+INIT_ARRAYSZ]))
+        while 0 in ctors: ctors.remove(0)
+        if 'remove_ctors' in info:
+            for hexd in info['remove_ctors']:
+                add = eval(hexd)
+                if add in ctors: ctors.remove(add)
+        if 'add_ctors' in info:
+            for hexd in info['add_ctors']:
+                add = eval(hexd)
+                ctors.append(add)
+        assert len(ctors)*4 <= INIT_ARRAYSZ, f' new ctors is big than old room {ctors} {len(ctors)*4} {INIT_ARRAYSZ}' 
+        INIT_ARRAYSZ = len(ctors)*4
+        binbs[INIT_ARRAY_OFFSET:INIT_ARRAY_OFFSET+INIT_ARRAYSZ] = struct.pack('I' *(INIT_ARRAYSZ//4), *ctors)
+        sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynamic'][0]
+        sec = binary.sections[sec_id]
+        for t, dyn in enumerate(binary.dynamic_entries): 
+            if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAY: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), INIT_ARRAY)
+            if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAYSZ: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), INIT_ARRAYSZ)
+
+        ################################################################################
+        # handle dtors
+        #  show origin dtors
+        for t, dyn in enumerate(binary.dynamic_entries): 
+            if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAY: FINI_ARRAY = dyn.value
+            if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAYSZ: FINI_ARRAYSZ = dyn.value
+        FINI_ARRAY_OFFSET = binary.virtual_address_to_offset(FINI_ARRAY)
+        dtors = list(struct.unpack('I'*(FINI_ARRAYSZ//4), binbs[FINI_ARRAY_OFFSET:FINI_ARRAY_OFFSET+FINI_ARRAYSZ]))
+        while 0 in dtors: dtors.remove(0)
+        if 'remove_dtors' in info:
+            for hexd in info['remove_dtors']:
+                add = eval(hexd)
+                if add in dtors: dtors.remove(add)
+        if 'add_dtors' in info:
+            for hexd in info['add_dtors']:
+                add = eval(hexd)
+                dtors.append(add)
+        assert len(dtors)*4 <= FINI_ARRAYSZ, f' new dtors is big than old room {dtors} {len(ctors)*4} {FINI_ARRAYSZ}' 
+        FINI_ARRAYSZ = len(dtors)*4
+        binbs[FINI_ARRAY_OFFSET:FINI_ARRAY_OFFSET+FINI_ARRAYSZ] = struct.pack('I' *(FINI_ARRAYSZ//4), *dtors)
+        sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynamic'][0]
+        sec = binary.sections[sec_id]
+        for t, dyn in enumerate(binary.dynamic_entries): 
+            if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAY: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), FINI_ARRAY)
+            if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAYSZ: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), FINI_ARRAYSZ)
+
+        ################################################################################
+        # handle remove_libraries
+        if 'remove_libraries' in info:
+            sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynstr'][0]
+            sec = binary.sections[sec_id]
+            needToRemoveIDs= []
+            for t, dyn in enumerate(binary.dynamic_entries): 
+                if dyn.tag == lief.ELF.DYNAMIC_TAGS.NEEDED:
+                    offset = dyn.value
+                    name = getStr(binbs[sec.offset+offset:])
+                    if name in info['remove_libraries']: needToRemoveIDs.append(t)
+            sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynamic'][0]
+            sec = binary.sections[sec_id]
+            total_entries = len(binary.dynamic_entries)
+            entry_size  = sec.entry_size
+            for t in sorted(needToRemoveIDs, reverse=True):
+                tbs = binbs[sec.offset+entry_size*t+entry_size:sec.offset+total_entries*entry_size]
+                binbs[sec.offset+entry_size*t:sec.offset+total_entries*entry_size-entry_size] = tbs
+                
+        ################################################################################
+        # handle remove_symbols
+        if 'remove_symbols' in info:
+            sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynsym'][0]
+            sec = binary.sections[sec_id]
+            total_entries = len(binary.dynamic_symbols)
+            entry_size  = sec.entry_size
+            for t, sym in enumerate(binary.dynamic_symbols): 
+                if sym.name in info['remove_symbols']: 
+                    binbs[sec.offset+entry_size*t:sec.offset+t*entry_size+entry_size] = b'\0'*entry_size
+        self.binbs = binbs
+
     @decorator_inc_debug_level
     def load(self, fn):
         self.binary = lief.parse(fn)
         if self.binary:
             self.binbs=bytearray(open(fn,'rb').read())
+            self.rebuild()
             return True
         return False
 
