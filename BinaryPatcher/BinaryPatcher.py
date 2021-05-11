@@ -7,6 +7,7 @@ import magic
 
 from .         import *
 from .binfmt   import *
+from .arch     import *
 from .util.log import *
 
 class BinaryPatcher(object):
@@ -19,25 +20,28 @@ class BinaryPatcher(object):
     symbolMap   = {} # store a function/address map for later patch
     patchesList = [] # all patches
 
-    def __init__(self, binfmtName:str = ""): # arch can inference from binary format 
-        if binfmtName != "":
-            assert binfmtName in bin_fmt_clzs, f'{binfmtName} is not supported '
-            # create binfmt by given binfmt file
-            self.binfmt = bin_fmt_clzs[binfmtName]()
+    def __init__(self, info=None): # arch can inference from binary format 
+        if info != None:
+            self.binfmt         = bin_fmt_clzs[ info['BINFMT']['name'] ](info['BINFMT'])
+            self.arch           = arch_clsz[ info['ARCH']['name'] ](info['ARCH'])
+            CAVE_LENGTH = info ['CAVE_LENGTH']
+            self.cave_length    = eval(CAVE_LENGTH) if isinstance(CAVE_LENGTH, str) else CAVE_LENGTH
+            self.symbolMap      = {k:eval(v) for k,v in info['SYMBOL_MAP'].items()}
+            self.patchesList    = info['PATCHES']    
 
     def load(self, fn):
         if self.binfmt == None:
             fm = magic.Magic().from_buffer(open(fn,'rb').read())
             if fm in bin_fmt_magic_map:
-                obj = bin_fmt_magic_map[fm]()
-                self.binfmt = obj;
+                self.binfmt = bin_fmt_magic_map[fm]()
+                logInfo(f" {fn} is binary format {self.binfmt.getName()} have magic  {fm} ");
         assert self.binfmt != None, f'unsupported binary format for file {fn}'
-        logInfo(f" {fn} is binary format {obj.getName()} have magic  {fm} ");
         ok = self.binfmt.load(fn)
         assert ok, f'input file {fn} is not binary format given'
         self.binfmt.updateSymbolMap(self.symbolMap)
         logInfo(f" {fn} have {len(self.symbolMap)} symbols ");
-        self.arch = self.binfmt.getArch()
+        if self.arch == None:
+            self.arch = self.binfmt.getArch()
     
     def addPatch(self, idx=-1,name=None, enable=True):
         '''
@@ -70,18 +74,19 @@ class BinaryPatcher(object):
 
     def getInfo(self):
         return {
-            'PATCHES': self.patchesList,
-            'ARCH': self.arch.getInfo(),
-            'BINFMT': self.binfmt.getInfo(),
-            'CAVE_LENGTH' : self.cave_length,
-            'SYMBOL_MAP': self.symbolMap,
+            'PATCHES'       : self.patchesList,
+            'ARCH'          : self.arch.getInfo(),
+            'BINFMT'        : self.binfmt.getInfo(),
+            'CAVE_LENGTH'   : self.cave_length,
+            'SYMBOL_MAP'    : { k:hex(v) for k, v in self.symbolMap.items() },
             }
 
     @decorator_inc_debug_level
     def run_patch_step(self, step):
         obj = patchstep_map[step['type']](step, self.arch, self.symbolMap)
         for address, binaries in obj.run():
-            log(f'<+> {hex(address)} {binaries}')
+            # TODO: handle patch address, binaries
+            logInfo(f'<+> {hex(address)} {binaries}')
 
     @decorator_inc_debug_level
     def run_patch(self, patch):
@@ -96,12 +101,15 @@ class BinaryPatcher(object):
             self.run_patch_step(step)
 
     def run(self):
+        if self.cave_length>0:
+            self.symbolMap['CAVE_ADDRESS'] = self.binfmt.addCave(self.cave_length)
         for patch in self.patchesList:
             name = patch['name']
-            log(f'<+>hanling patch {name} ...')
+            logInfo(f'<+>hanling patch {name} ...')
             self.run_patch(patch)
 
     
     def write(self, fn):
-        pass
+        assert self.binfmt.binbs!=None, f'binbs equals to None when write '
+        open(fn,'wb').write(self.binfmt.binbs)
 

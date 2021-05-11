@@ -8,7 +8,7 @@ from .NESRomFile    import *
 
 bin_fmt_clzs =  {
         'ELFFile':      ELFFile ,
-        'GBAROM':       GBARomFile ,
+        'GBARom':       GBARomFile ,
         'NESRom':       NESRomFile ,
 }
 
