@@ -11,8 +11,8 @@ from ..util.log import *
 class ELFFile(BinFile):
 
     @decorator_inc_debug_level
-    def __init__(self):
-        pass
+    def __init__(self, info=None):
+        BinFile.__init__(self, info);
 
     @decorator_inc_debug_level
     def getName(self):
@@ -40,5 +40,7 @@ class ELFFile(BinFile):
         if self.binary.header.machine_type == lief.ELF.ARCH.ARM: 
             return Arm(True)
         raise Exception(f'unsupported machine_type {self.binary.header.machine_type } ')
+
         
+    
 

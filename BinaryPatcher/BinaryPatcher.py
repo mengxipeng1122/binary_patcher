@@ -15,6 +15,7 @@ class BinaryPatcher(object):
     '''
     binfmt      = None
     arch        = None
+    cave_length = 0
     symbolMap   = {} # store a function/address map for later patch
     patchesList = [] # all patches
 
@@ -67,8 +68,14 @@ class BinaryPatcher(object):
         step.update(info)
         self.patchesList[patchIdx]['steps'].append(step)
 
-    def dump(self):
-        print(json.dumps(self.patchesList, indent=2))
+    def getInfo(self):
+        return {
+            'PATCHES': self.patchesList,
+            'ARCH': self.arch.getInfo(),
+            'BINFMT': self.binfmt.getInfo(),
+            'CAVE_LENGTH' : self.cave_length,
+            'SYMBOL_MAP': self.symbolMap,
+            }
 
     @decorator_inc_debug_level
     def run_patch_step(self, step):

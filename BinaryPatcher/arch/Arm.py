@@ -4,21 +4,27 @@
 import sys
 import struct
 
-from .Arch import *
-
 from keystone import *
 from capstone import *
 
+from ..util.log import *
+from .Arch import *
+
 class Arm(Arch):
+    thumbMode = False
+    @decorator_inc_debug_level
     def __init__(self, thumbMode=False):
         if thumbMode:
             Arch.__init__(self, KS_ARCH_ARM, KS_MODE_THUMB, CS_ARCH_ARM, CS_MODE_THUMB)
         else:
             Arch.__init__(self, KS_ARCH_ARM, KS_MODE_ARCH, CS_ARCH_ARM, CS_MODE_ARCH)
+        self.thumbMode = thumbMode;
 
+    @decorator_inc_debug_level
     def getNopCode(self):
         return "nop"
 
+    @decorator_inc_debug_level
     def parsePlTSecUpdateSymol(self, sec, address, pltmap, m ):
         for o in range(0, len(sec) - 0x08, 0x04):
             ins0, ins1, ins2 = struct.unpack('III', sec[o:o+0x0c])
@@ -31,5 +37,12 @@ class Arm(Arch):
                 if addr in pltmap:
                     symbolname = pltmap[addr]
                     m[symbolname] = address + o 
+
+    @decorator_inc_debug_level
+    def getInfo(self):
+        info = Arch.getInfo(self)
+        info['name'] = 'ARM'
+        info['ThumbMode'] = self.thumbMode;
+        return info
         
 

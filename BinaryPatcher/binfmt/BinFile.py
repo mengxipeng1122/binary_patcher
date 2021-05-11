@@ -8,6 +8,12 @@ class BinFile( object ):
     '''
         a abstract class for all binfmtfiles class
     '''
+    info=None
+
+    @decorator_inc_debug_level
+    def __init__(self, info=None):
+        self.info  = info
+
     @decorator_inc_debug_level
     def getArch(self):            
         raise NotImplementedError("Should have implemented this ")
@@ -32,5 +38,7 @@ class BinFile( object ):
     def getArch(self):
         raise NotImplementedError("Should have implemented this ")
 
-
+    @decorator_inc_debug_level
+    def getInfo(self):
+        return self.info
 

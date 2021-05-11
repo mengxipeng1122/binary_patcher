@@ -9,8 +9,10 @@ from ..arch.Arm import *
 from ..util.log import *
 
 class GBARomFile(BinFile):
+
     @decorator_inc_debug_level
-    def __init__(self):
+    def __init__(self, info=None):
+        BinFile.__init__(self, info);        
         pass
 
     @decorator_inc_debug_level

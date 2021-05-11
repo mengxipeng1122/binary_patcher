@@ -8,9 +8,10 @@ from .BinFile import BinFile
 from ..util.log import *
 
 class NESRomFile(BinFile):
+
     @decorator_inc_debug_level
-    def __init__(self):
-        pass
+    def __init__(self, info=None):
+        BinFile.__init__(self, info);        
 
     @decorator_inc_debug_level
     def getName(self):
