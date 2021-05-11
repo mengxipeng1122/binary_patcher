@@ -28,7 +28,7 @@ class Arch(object):
     @decorator_inc_debug_level
     def asmCode(self, ks, code, address=0):
         binCode, count = ks.asm(code, address); 
-        return bytes(binCode)
+        return bytes(binCode), count
 
     @decorator_inc_debug_level
     def parsePlTSecUpdateSymol(self, sec, address, pltmap, m ):
@@ -112,7 +112,7 @@ class Arch(object):
         bs, binary_sectab = self.writeObjectFile(binary, link_address); # call base class method
         binary_symboltab = self.getBinarySymboltab(binary, binary_sectab)
         symboltab.update(binary_symboltab)
-        return self.dolink( bs, link_address, symboltab, binary.object_relocations)
+        return self.dolink( bs, link_address, symboltab, binary.object_relocations, info)
 
     def dolink(self, bs, link_address, symboltab, relocs):
         raise NotImplementedError( "Should have implemented this" )

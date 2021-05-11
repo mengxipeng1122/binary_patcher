@@ -10,6 +10,7 @@ from .util.log import *
 
 # base class of all patch step
 class PatchStep:
+    name=None
     @decorator_inc_debug_level
     def __init__(self, info, arch, symbolMap, write_cave_address):
         self.info          = info
@@ -36,8 +37,10 @@ class PatchStep:
 
 class NopPatchStep(PatchStep):
     ''' 
-        handle NomPatch
+        handle NopPatch
     ''' 
+    name='NopPatch'
+
     @decorator_inc_debug_level
     def __init__(self, info, arch, symbolMap, write_cave_address):
         PatchStep.__init__(self, info, arch, symbolMap, write_cave_address)
@@ -46,7 +49,8 @@ class NopPatchStep(PatchStep):
     @decorator_inc_debug_level
     def run(self):
         # prepare all code 
-        nopCode =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
+        nopCode, count =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
+        assert count == 1
         if  self.end_address == None:
             yield self.start_address, nopCode
         else:
@@ -57,6 +61,7 @@ class AsmPatchStep(PatchStep):
     ''' 
         handle NomPatch
     ''' 
+    name='AsmPatch'
     @decorator_inc_debug_level
     def __init__(self, info, arch, symbolMap, cave_length):
         PatchStep.__init__(self, info, arch, symbolMap, cave_length)
@@ -66,11 +71,13 @@ class AsmPatchStep(PatchStep):
     @decorator_inc_debug_level
     def run(self):
         # prepare all code 
-        nopCode =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
+        nopCode, count =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
+        assert count == 1
         addr = self.start_address
         for code in self.asm:
             logDebug(f'code {code}')
-            inst = self.arch.asmCode(self.ks, self.subSymbol(code), addr)
+            inst, count = self.arch.asmCode(self.ks, self.subSymbol(code), addr)
+            assert count == 1
             yield False, addr, inst
             addr += len(inst)
 
@@ -78,6 +85,8 @@ class ParasitePatchStep(PatchStep):
     ''' 
         handle ParasitePatch, this patch step put a parasite code into a address space 
     ''' 
+    name='ParasitePatch'
+
     @decorator_inc_debug_level
     def __init__(self, info, arch, symbolMap, write_cave_address):
         PatchStep.__init__(self, info, arch, symbolMap, write_cave_address)
@@ -101,5 +110,19 @@ class ParasitePatchStep(PatchStep):
         bs, fun_addr = self.arch.linkObjectFile(objfn, write_address, self.symbolMap, self.info);
         yield (True, write_address, bs)
 
+
+class BytesPatchStep(PatchStep):
+    ''' 
+        handle BytesPatch
+    ''' 
+    name='BytesPatch'
+    @decorator_inc_debug_level
+    def __init__(self, info, arch, symbolMap, write_cave_address):
+        PatchStep.__init__(self, info, arch, symbolMap, write_cave_address)
+        self.bytes = info['bytes']
+
+    @decorator_inc_debug_level
+    def run(self):
+        yield(False, self.start_address, bytes(self.bytes))
 
 

@@ -79,11 +79,13 @@ class Arm(Arch):
 
 
     @decorator_inc_debug_level
-    def dolink(self, bs, link_address, symboltab, relocs):
+    def dolink(self, bs, link_address, symboltab, relocs, info):
+        ks = self.getks(info)
         bs = bytearray(bs)
         # write bytes for link 
         for reloc in relocs: 
             assert reloc.has_symbol, f'has not symbol in reclocation {reloc}'
+            logDebug(f'reloc {reloc}')
             if not reloc.has_section: continue
             if  reloc.section.type != lief.ELF.SECTION_TYPES.PROGBITS   \
             and reloc.section.type != lief.ELF.SECTION_TYPES.NOBITS:
@@ -93,7 +95,7 @@ class Arm(Arch):
             offset  = address - link_address
             if reloc.symbol.name!='':
                 if reloc.symbol.name in symboltab: symbol_addr = symboltab[reloc.symbol.name]
-                else: raise Exception(f"can not found address for symbol {reloc.symbol.name} {binary_symboltab}")
+                else: raise Exception(f"can not found address for symbol {reloc.symbol.name} ")
             else:
                 if reloc.symbol.type == lief.ELF.SYMBOL_TYPES.SECTION:
                     sec_name = binary.sections[reloc.symbol.shndx].name
@@ -112,10 +114,8 @@ class Arm(Arch):
                 bs[offset:offset+4] = struct.pack('I', w)
         
             elif reloc.type == 10: # R_ARM_THM_CALL
-                start, end = pltinfo
-                if start<=symbol_addr and symbol_addr < end: code = f'BLX {hex(symbol_addr)}'
-                else: code = f'BL {hex(symbol_addr)}'
-                binCode, count = ks.asm(code, address); 
+                code = f'BLX {hex(symbol_addr)}'
+                binCode, count = Arch.asmCode(self, ks, code, address); 
                 assert count == 1
                 ins = bytearray(binCode)
                 bs[offset:offset+len(ins)] = ins
