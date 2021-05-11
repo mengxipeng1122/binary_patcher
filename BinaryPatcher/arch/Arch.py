@@ -18,5 +18,16 @@ class Arch(object):
     def asmCode(self, ks, code, address=0):
         binCode, count = ks.asm(code, address); 
         return bytes(binCode)
+
+    def parsePlTSecUpdateSymol(self, sec, address, pltmap, m ):
+        '''
+            this method parse .plt section dat to update a map of symbol name ->  plt stub address 
+            augments :
+                sec -- content of .plt section , of type bytes
+                address -- address of .plt section 
+                pltmap  -- a map of  actual plt address => symbol name 
+                m  -- symbol map need to upate
+        ''' 
+        raise NotImplementedError( "Should have implemented this" )
     
 

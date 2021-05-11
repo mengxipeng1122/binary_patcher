@@ -28,4 +28,9 @@ class BinFile( object ):
     def updateSymbolMap(self, m): 
         raise NotImplementedError("Should have implemented this ")
 
+    @decorator_inc_debug_level
+    def getArch(self):
+        raise NotImplementedError("Should have implemented this ")
+
+
 

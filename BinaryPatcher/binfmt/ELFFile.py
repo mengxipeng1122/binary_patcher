@@ -5,6 +5,7 @@ import sys
 import lief 
 
 from .BinFile import BinFile
+from ..arch.Arm import *
 from ..util.log import *
 
 class ELFFile(BinFile):
@@ -29,8 +30,15 @@ class ELFFile(BinFile):
         # update
         m.update( { sym.name : sym.value for sym in self.binary.exported_symbols} )
         # update plt 
-        # TODO: hard code address offset
+        #m.update( { reloc.symbol.name : sec.virtual_address + t*0x0c+0x14 for t, reloc in enumerate(self.binary.pltgot_relocations) if reloc.has_symbol} )
+        pltmap = {reloc.address : reloc.symbol.name for reloc in self.binary.pltgot_relocations}
         sec = self.binary.get_section('.plt')
-        m.update( { reloc.symbol.name : sec.virtual_address + t*0x0c+0x14 for t, reloc in enumerate(self.binary.pltgot_relocations) if reloc.has_symbol} )
+        self.getArch().parsePlTSecUpdateSymol(bytes(sec.content), sec.virtual_address, pltmap, m )
+
+    @decorator_inc_debug_level
+    def getArch(self):
+        if self.binary.header.machine_type == lief.ELF.ARCH.ARM: 
+            return Arm(True)
+        raise Exception(f'unsupported machine_type {self.binary.header.machine_type } ')
         
 
