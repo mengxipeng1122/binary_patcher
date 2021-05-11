@@ -15,7 +15,6 @@ class BinaryPatcher(object):
     '''
     binfmt      = None
     arch        = None
-    log_indent  = 0
     symbolMap   = {} # store a function/address map for later patch
     patchesList = [] # all patches
 
@@ -32,11 +31,11 @@ class BinaryPatcher(object):
                 obj = bin_fmt_magic_map[fm]()
                 self.binfmt = obj;
         assert self.binfmt != None, f'unsupported binary format for file {fn}'
-        logInfo(f" {fn} is binary format {obj.getName()} have magic  {fm} ", self.log_indent);
-        ok = self.binfmt.load(fn, self.log_indent+1)
+        logInfo(f" {fn} is binary format {obj.getName()} have magic  {fm} ");
+        ok = self.binfmt.load(fn)
         assert ok, f'input file {fn} is not binary format given'
         self.binfmt.updateSymbolMap(self.symbolMap)
-        logInfo(f" {fn} have {len(self.symbolMap)} symbols ", self.log_indent);
+        logInfo(f" {fn} have {len(self.symbolMap)} symbols ");
         self.arch = self.binfmt.getArch()
     
     def addPatch(self, idx=-1,name=None, enable=True):
@@ -71,25 +70,29 @@ class BinaryPatcher(object):
     def dump(self):
         print(json.dumps(self.patchesList, indent=2))
 
+    @decorator_inc_debug_level
+    def run_patch_step(self, step):
+        obj = patchstep_map[step['type']](step, self.arch, self.symbolMap)
+        for address, binaries in obj.run():
+            log(f'<+> {hex(address)} {binaries}')
+
+    @decorator_inc_debug_level
+    def run_patch(self, patch):
+        name   = patch['name']
+        enable = patch['enable'] if 'enable' in patch else True 
+        if not enable:
+            logWarn(f'<+>skip patch {name} ...')
+            return 
+        steps = patch['steps']
+        logInfo(f'<+>patching  {name} of {len(steps)} steps ')
+        for i, step in enumerate(steps):
+            self.run_patch_step(step)
+
     def run(self):
         for patch in self.patchesList:
             name = patch['name']
-            log(f'<+>hanling patch {name} ...', self.log_indent)
-            self.log_indent+=1
-            enable = patch['enable'] if 'enable' in patch else True 
-            if not enable:
-                log(f'<+>skip patch {name} ...', self.log_indent)
-                continue
-            steps = patch['steps']
-            log(f'<+>patching  {name} of {len(steps)} steps ', self.log_indent)
-            for i, step in enumerate(steps):
-                self.log_indent+=1
-                step['arch'] = self.arch
-                obj = patchstep_map[step['type']](step, self.log_indent)
-                for address, binaries in obj.run(self.log_indent):
-                    log(f'<+> {hex(address)} {binaries}', self.log_indent)
-                self.log_indent-=1
-            self.log_indent-=1
+            log(f'<+>hanling patch {name} ...')
+            self.run_patch(patch)
 
     
     def write(self, fn):

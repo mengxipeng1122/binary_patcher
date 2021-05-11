@@ -15,14 +15,8 @@ class Arm(Arch):
         else:
             Arch.__init__(self, KS_ARCH_ARM, KS_MODE_ARCH, CS_ARCH_ARM, CS_MODE_ARCH)
 
-    def getNopInstruction(self, address, info=None):
-        code = "nop"
-        if 'ThumbMode' not in info:
-            ks = Ks(self.ks_arch, self.ks_mode)
-        else:
-            ThumbMode = info['ThumbMode']
-            ks = Ks(self.ks_arch, KS_MODE_THUMB if ThumbMode else KS_ARCH_ARM )
-        return Arch.asmCode(self, ks, code, address)
+    def getNopCode(self):
+        return "nop"
         
 
 

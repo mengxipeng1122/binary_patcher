@@ -17,6 +17,6 @@ class Arch(object):
 
     def asmCode(self, ks, code, address=0):
         binCode, count = ks.asm(code, address); 
-        return bytearray(binCode)
+        return bytes(binCode)
     
 

@@ -9,19 +9,23 @@ from ..util.log import *
 
 class ELFFile(BinFile):
 
+    @decorator_inc_debug_level
     def __init__(self):
         pass
 
+    @decorator_inc_debug_level
     def getName(self):
         return "ELFFile"
 
-    def load(self, fn, log_indent = 0):
+    @decorator_inc_debug_level
+    def load(self, fn):
         self.binary = lief.parse(fn)
         if self.binary:
             return True
         return False
 
-    def updateSymbolMap(self, m, log_indent = 0):
+    @decorator_inc_debug_level
+    def updateSymbolMap(self, m):
         # update
         m.update( { sym.name : sym.value for sym in self.binary.exported_symbols} )
         # update plt 

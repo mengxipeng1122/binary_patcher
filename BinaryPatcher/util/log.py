@@ -10,25 +10,42 @@ from .color import *
 
 '''
 
-indent_space=2
+LOG_LEV_ERROR  =0 
+LOG_LEV_WARN   =1 
+LOG_LEV_NOTICE =2 
+LOG_LEV_INFO   =3 
+LOG_LEV_DEBUG  =4 
 
-def logError(msg, indent=0):         # display error info, and raise exception
-    Color.pl(f'<R>{" "*indent_space*indent}{msg}')
+log_indent_space=2
+log_indent = 0
+log_level  = LOG_LEV_DEBUG
+
+def logError(msg):         # display error info, and raise exception
+    if log_level>= LOG_LEV_ERROR: Color.pl(f'<R>{" "*log_indent_space*log_indent}{msg}')
     raise Exception(msg)
 
-def logInfo(msg, indent=0):          # display normal info 
-    Color.pl(f'<G>{" "*indent_space*indent}{msg}')
+def logInfo(msg):          # display normal info 
+    if log_level>= LOG_LEV_INFO: Color.pl(f'<G>{" "*log_indent_space*log_indent}{msg}')
 
-def logNotice(msg, indent=0):        # display noticeable  info
-    Color.pl(f'<W>{" "*indent_space*indent}{msg}')
+def logNotice(msg):        # display noticeable  info
+    if log_level>= LOG_LEV_NOTICE: Color.pl(f'<W>{" "*log_indent_space*log_indent}{msg}')
     
-def logWarn(msg, indent=0):          # display warning info
-    Color.pl(f'<P>{" "*indent_space*indent}{msg}')
+def logWarn(msg):          # display warning info
+    if log_level>= LOG_LEV_WARN:   Color.pl(f'<P>{" "*log_indent_space*log_indent}{msg}')
 
-def logDebug(msg, indent=0):          # display warning info
-    Color.pl(f'<C>{" "*indent_space*indent}{msg}')
+def logDebug(msg):          # display warning info
+    if log_level>= LOG_LEV_DEBUG:  Color.pl(f'<C>{" "*log_indent_space*log_indent}{msg}')
     
-    
-def log(msg, indent=0):              # call log.pl directly
-    Color.pl(f'{" "*indent_space*indent}{msg}')
+def log(msg):              # call log.pl directly
+    Color.pl(f'{" "*log_indent_space*log_indent}{msg}')
 
+
+def decorator_inc_debug_level(f):
+    def wrapper(*args,**kwargs):
+        global log_indent
+        assert log_indent>=0, f'error log indent {log_indent} '
+        log_indent+=1
+        ret = f(*args)
+        log_indent-=1
+        return ret
+    return wrapper

@@ -6,20 +6,26 @@ import magic
 
 from .BinFile import BinFile
 from ..arch.Arm import *
+from ..util.log import *
 
 class GBARomFile(BinFile):
+    @decorator_inc_debug_level
     def __init__(self):
         pass
 
+    @decorator_inc_debug_level
     def getName(self):
         return "GBARomFile"
 
-    def load(self, fn, log_indent):
+    @decorator_inc_debug_level
+    def load(self, fn):
         return True
 
-    def updateSymbolMap(self, m, log_indent = 0): 
+    @decorator_inc_debug_level
+    def updateSymbolMap(self, m): 
         pass # TODO: 
 
+    @decorator_inc_debug_level
     def getArch(self):
         return Arm(True)
 
