@@ -87,6 +87,7 @@ class BinaryPatcher(object):
         for address, binaries in obj.run():
             # TODO: handle patch address, binaries
             logInfo(f'<+> {hex(address)} {binaries}')
+            self.binfmt.patch(address,binaries)
 
     @decorator_inc_debug_level
     def run_patch(self, patch):

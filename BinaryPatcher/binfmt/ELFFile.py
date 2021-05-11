@@ -554,7 +554,7 @@ class ELFFile(BinFile):
     @decorator_inc_debug_level
     def new_cave_last_segment_end(self,le):
         binary = self.binary  
-        binbs  = bytearray(self.binbs)
+        binbs  = self.binbs
         e_CLASS     = binary.header.identity_class;
         e_phnum     = binary.header.numberof_segments
         e_phentsize = binary.header.program_header_size
@@ -607,7 +607,8 @@ class ELFFile(BinFile):
         if True:
             # put section header to the end of the file 
             binbs += section_header
-        self.binbs = bytes(binbs) 
+        self.binbs = binbs
+        self.binary = lief.parse(self.binbs)
         return inject_address
 
     @decorator_inc_debug_level
@@ -626,7 +627,7 @@ class ELFFile(BinFile):
     def load(self, fn):
         self.binary = lief.parse(fn)
         if self.binary:
-            self.binbs=open(fn,'rb').read()
+            self.binbs=bytearray(open(fn,'rb').read())
             return True
         return False
 
@@ -661,5 +662,13 @@ class ELFFile(BinFile):
             return new_cave_move_text_data_segment(le, fn)
         else: raise Exception(f' unknown method {CAVE_METHOD} ')
         
+    @decorator_inc_debug_level
+    def patch(self, addr, bs):
+        for t, seg in enumerate(self.binary.segments):
+            if addr>= seg.virtual_address and addr < seg.virtual_address + seg.virtual_size: 
+                off = seg.file_offset + ( addr - seg.virtual_address )
+                self.binbs[off:off+len(bs)] = bs
+                return 
+        raise Exception(f'write {hex(addr)} -- {len(bs)} failed' )
     
 

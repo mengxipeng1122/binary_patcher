@@ -46,3 +46,7 @@ class BinFile( object ):
     @decorator_inc_debug_level
     def addCave(self, l):
         raise NotImplementedError("Should have implemented this ")
+
+    @decorator_inc_debug_level
+    def patch(self, addr, bs):
+        raise NotImplementedError("Should have implemented this ")
