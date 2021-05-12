@@ -739,7 +739,7 @@ class ELFFile(BinFile):
     @decorator_inc_debug_level
     def getArch(self):
         if self.binary.header.machine_type == lief.ELF.ARCH.ARM: 
-            return Arm(True)
+            return Arm()
         raise Exception(f'unsupported machine_type {self.binary.header.machine_type } ')
 
     @decorator_inc_debug_level

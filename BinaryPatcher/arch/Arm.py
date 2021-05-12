@@ -14,12 +14,14 @@ class Arm(Arch):
     thumbMode       = False
 
     @decorator_inc_debug_level
-    def __init__(self, thumbMode=False):
+    def __init__(self, info=None):
+        thumbMode = False
+        if info != None and 'ThumbMode' in info:
+            thumbMode = info['ThumbMode']
         if thumbMode:
-            Arch.__init__(self, KS_ARCH_ARM, KS_MODE_THUMB, CS_ARCH_ARM, CS_MODE_THUMB)
+            Arch.__init__(self, KS_ARCH_ARM, KS_MODE_THUMB, CS_ARCH_ARM, CS_MODE_THUMB, info)
         else:
-            Arch.__init__(self, KS_ARCH_ARM, KS_MODE_ARCH, CS_ARCH_ARM, CS_MODE_ARCH)
-        self.compile_flags   = ''
+            Arch.__init__(self, KS_ARCH_ARM, KS_MODE_ARM, CS_ARCH_ARM, CS_MODE_ARM, info)
         self.compiler        = 'arm-linux-gnueabihf-gcc'
         self.thumbMode       = thumbMode;
 
@@ -29,6 +31,13 @@ class Arm(Arch):
 
     @decorator_inc_debug_level
     def parsePlTSecUpdateSymol(self, sec, address, pltmap, m ):
+        # trick get __GLOBAL_OFFSET_TABLE_ address
+        ins0, ins1, ins2, ins3, ins4 = struct.unpack('IIIII', sec[0x00:0x14])
+        if 0xe52de004 == ins0 and 0xe59fe004 == ins1 and 0xe08fe00e == ins2 and 0xe5bef008 == ins3:
+            off = ins4
+            symbolname = '_GLOBAL_OFFSET_TABLE_'
+            addr = address + 0x10 + off
+            m[symbolname] = addr
         for o in range(0, len(sec) - 0x08, 0x04):
             ins0, ins1, ins2 = struct.unpack('III', sec[o:o+0x0c])
             # hard code for arm instruction 
@@ -79,11 +88,11 @@ class Arm(Arch):
 
 
     @decorator_inc_debug_level
-    def dolink(self, bs, link_address, symboltab, relocs, info):
+    def dolink(self, bs, link_address, symboltab, binary, binary_sectab, info):
         ks = self.getks(info)
         bs = bytearray(bs)
         # write bytes for link 
-        for reloc in relocs: 
+        for reloc in binary.object_relocations:
             assert reloc.has_symbol, f'has not symbol in reclocation {reloc}'
             logDebug(f'reloc {reloc}')
             if not reloc.has_section: continue
@@ -174,5 +183,14 @@ class Arm(Arch):
         # calculate 'fun' symbol address
         return (bytes(bs), symboltab['fun'] & 0xffffffff if 'fun' in symboltab else None )
 
+    @decorator_inc_debug_level
+    def alignCodeAddress(self, address):
+        if address == None: return None
+        return address & 0xfffffffe
+
+    @decorator_inc_debug_level
+    def alignDataAddress(self, address):
+        if address == None: return None
+        return address & 0xfffffffc
 
 

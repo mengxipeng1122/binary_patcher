@@ -49,6 +49,8 @@ class NopPatchStep(PatchStep):
     @decorator_inc_debug_level
     def run(self):
         # prepare all code 
+        self.start_address = self.arch.alignCodeAddress(self.start_address)
+        self.end_address   = self.arch.alignCodeAddress(self.end_address)
         nopCode, count =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
         assert count == 1
         if  self.end_address == None:
@@ -71,6 +73,7 @@ class AsmPatchStep(PatchStep):
     @decorator_inc_debug_level
     def run(self):
         # prepare all code 
+        self.start_address = self.arch.alignCodeAddress(self.start_address)
         nopCode, count =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
         assert count == 1
         addr = self.start_address
@@ -103,7 +106,7 @@ class ParasitePatchStep(PatchStep):
     def run(self):
         write_address =self.write_cave_address
         logDebug(f'write_cave_address -- {hex(write_address)}')
-        objfn = os.path.join('/tmp', os.path.basename(f'{self.src}.o'))
+        objfn = os.path.join('/tmp', os.path.basename(f'{self.src}.1.o'))
         workdir = os.path.dirname(self.src)
         if workdir == ' '*len(workdir): workdir = '.'
         self.arch.compileObjectFile(self.src, objfn, workdir, self.compiler, f'{self.compile_flags}  -D WRITE_ADDRESS={hex(write_address)}', self.info)

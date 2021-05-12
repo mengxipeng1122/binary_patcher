@@ -12,14 +12,16 @@ class Arch(object):
     '''
 
     compiler        = None
-    compile_flags   = None
+    compile_flags   = ""
 
     @decorator_inc_debug_level
-    def __init__(self, ks_arch, ks_mode, cs_arch, cs_mode):
+    def __init__(self, ks_arch, ks_mode, cs_arch, cs_mode, info=None):
         self.ks_arch = ks_arch 
         self.ks_mode = ks_mode 
         self.cs_arch = cs_arch 
         self.cs_mode = cs_mode 
+        if info != None and 'cflags' in info:
+            self.compile_flags = info['cflags']
         
     @decorator_inc_debug_level
     def getNopInstruction(self,address, info=None): 
@@ -49,6 +51,7 @@ class Arch(object):
             'KS_MODE' : self.ks_mode ,
             'CS_ARCH' : self.cs_arch ,
             'CS_MODE' : self.cs_mode ,
+            'cflags'  : self.compile_flags,
         }
     
     @decorator_inc_debug_level
@@ -112,10 +115,21 @@ class Arch(object):
         bs, binary_sectab = self.writeObjectFile(binary, link_address); # call base class method
         binary_symboltab = self.getBinarySymboltab(binary, binary_sectab)
         symboltab.update(binary_symboltab)
-        return self.dolink( bs, link_address, symboltab, binary.object_relocations, info)
+        logDebug(f'binary_sectab {binary_sectab}')
+        return self.dolink( bs, link_address, symboltab, binary, binary_sectab,  info)
 
-    def dolink(self, bs, link_address, symboltab, relocs):
+    @decorator_inc_debug_level
+    def dolink(self, bs, link_address, symboltab, binary, binary_sectab, info):
         raise NotImplementedError( "Should have implemented this" )
+
+    @decorator_inc_debug_level
+    def alignCodeAddress(self, address):
+        raise NotImplementedError( "Should have implemented this" )
+        
+    @decorator_inc_debug_level
+    def alignDataAddress(self, address):
+        raise NotImplementedError( "Should have implemented this" )
+        
 
 
 
