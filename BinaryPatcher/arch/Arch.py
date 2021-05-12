@@ -47,10 +47,10 @@ class Arch(object):
     @decorator_inc_debug_level
     def getInfo(self):
         return {
-            'KS_ARCH' : self.ks_arch ,
-            'KS_MODE' : self.ks_mode ,
-            'CS_ARCH' : self.cs_arch ,
-            'CS_MODE' : self.cs_mode ,
+            'KS_ARCH' : self.ks_arch,
+            'KS_MODE' : self.ks_mode,
+            'CS_ARCH' : self.cs_arch,
+            'CS_MODE' : self.cs_mode,
             'cflags'  : self.compile_flags,
         }
     
@@ -86,17 +86,12 @@ class Arch(object):
                 bs += b'\0'*(next_write_address-write_address)
                 write_address=next_write_address
                 sectab[sec.name] = sec.virtual_address # record all section address 
-        return bs, sectab
-
-    @decorator_inc_debug_level
-    def getBinarySymboltab(self, binary, sectab):
         symboltab = {} 
         # update symbol table for local variables
         if binary.has_static_symbol:
             for t, symbol in enumerate(binary.static_symbols):
                 if symbol.type not in [ lief.ELF.SYMBOL_TYPES.OBJECT ,
-                        lief.ELF.SYMBOL_TYPES.FUNC , 
-                        ]:
+                        lief.ELF.SYMBOL_TYPES.FUNC , ]:
                    continue
                 if len(symbol.name) == 0: continue
                 if symbol.shndx>=binary.header.numberof_sections: 
@@ -107,13 +102,12 @@ class Arch(object):
                 sec_name = binary.sections[symbol.shndx].name
                 symbol_address = sectab[sec_name] + symbol.value
                 symboltab[symbol.name] = symbol_address
-        return symboltab
+        return bs, sectab, symboltab
 
     @decorator_inc_debug_level
     def linkObjectFile(self, objfn, link_address, symboltab, info): 
         binary = lief.parse(objfn)
-        bs, binary_sectab = self.writeObjectFile(binary, link_address); # call base class method
-        binary_symboltab = self.getBinarySymboltab(binary, binary_sectab)
+        bs, binary_sectab, binary_symboltab = self.writeObjectFile(binary, link_address);
         symboltab.update(binary_symboltab)
         logDebug(f'binary_sectab {binary_sectab}')
         return self.dolink( bs, link_address, symboltab, binary, binary_sectab,  info)
@@ -130,6 +124,3 @@ class Arch(object):
     def alignDataAddress(self, address):
         raise NotImplementedError( "Should have implemented this" )
         
-
-
-
