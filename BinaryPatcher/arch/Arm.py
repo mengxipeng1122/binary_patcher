@@ -185,12 +185,10 @@ class Arm(Arch):
 
     @decorator_inc_debug_level
     def alignCodeAddress(self, address):
-        if address == None: return None
-        return address & 0xfffffffe
+        return self.alignAddress(address,0xfffffffe)
 
     @decorator_inc_debug_level
     def alignDataAddress(self, address):
-        if address == None: return None
-        return address & 0xfffffffc
+        return self.alignAddress(address,0xfffffffc)
 
 

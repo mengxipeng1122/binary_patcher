@@ -83,12 +83,11 @@ class BinaryPatcher(object):
 
     @decorator_inc_debug_level
     def run_patch_step(self, step):
-        obj = patchstep_map[step['type']](step, self.arch, self.symbolMap, self.write_cave_address)
-        for putcave, address, binaries in obj.run():
+        obj = patchstep_map[step['type']](step, self.arch, self.symbolMap)
+        for address, binaries in obj.run(self.write_cave_address):
             # TODO: handle patch address, binaries
-            logInfo(f'<+> {hex(address)} {binaries}')
+            logInfo(f'<+> {hex(address)} {binaries} {hex(self.write_cave_address[0])}')
             self.binfmt.patch(address,binaries)
-            if putcave: self.write_cave_address = address + len(binaries)
 
     @decorator_inc_debug_level
     def run_patch(self, patch):
@@ -107,7 +106,8 @@ class BinaryPatcher(object):
             logDebug(f'self.cave_length {self.cave_length}' )
             self.symbolMap['CAVE_ADDRESS'] = self.binfmt.addCave(self.cave_length)
             logDebug(f'CAVE_ADDRESS {hex(self.symbolMap["CAVE_ADDRESS"])}' )
-        self.write_cave_address = self.symbolMap['CAVE_ADDRESS'] if 'CAVE_ADDRESS' in self.symbolMap else None
+        # NOTE: write_cave_address should be a list, so can pass by reference in run patch step
+        self.write_cave_address = [self.symbolMap['CAVE_ADDRESS'] if 'CAVE_ADDRESS' in self.symbolMap else None]
         for patch in self.patchesList:
             name = patch['name']
             logInfo(f'<+>hanling patch {name} ...')

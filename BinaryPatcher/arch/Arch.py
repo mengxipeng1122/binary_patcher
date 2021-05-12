@@ -117,10 +117,20 @@ class Arch(object):
         raise NotImplementedError( "Should have implemented this" )
 
     @decorator_inc_debug_level
+    def alignAddress(self, address, mask=0xfffffffc):
+        if address == None: return None
+        if isinstance(address, list): return [self.alignAddress(address[0], mask)]
+        if isinstance(address, int): return address & mask
+        raise Exception(f'unsupported augment {address} in alignCodeAddress ')
+
+
+
+    @decorator_inc_debug_level
     def alignCodeAddress(self, address):
         raise NotImplementedError( "Should have implemented this" )
         
     @decorator_inc_debug_level
     def alignDataAddress(self, address):
         raise NotImplementedError( "Should have implemented this" )
+
         
