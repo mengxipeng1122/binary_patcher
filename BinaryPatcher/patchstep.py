@@ -20,7 +20,7 @@ class PatchStep:
         self.end_address   = self.calAddress(info['endAddress'  ]) if 'endAddress' in info else None
 
     @decorator_inc_debug_level
-    def run(self):
+    def run(self, write_address:list, ops:list=[]):
         raise NotImplementedError('Should have implemented this ')
 
     @decorator_inc_debug_level
@@ -35,15 +35,14 @@ class PatchStep:
         return eval(self.subSymbol(text))
 
     @decorator_inc_debug_level
-    def compileSrcToCave(self, write_address:list, extera_compile_flags=""):
+    def compileSrcToCave(self, write_address:list, ops:list, extera_compile_flags=""):
         self.arch.alignCodeAddress(write_address)
-        logDebug(f'write_address -- {hex(write_address[0])}')
         objfn = os.path.join('/tmp', os.path.basename(f'{self.srcfn}.1.o'))
         workdir = os.path.dirname(self.srcfn)
         if workdir == ' '*len(workdir): workdir = '.'
         self.arch.compileObjectFile(self.srcfn, objfn, workdir, self.compiler, f'{self.compile_flags}  {extera_compile_flags}', self.info)
         bs, fun_addr = self.arch.linkObjectFile(objfn, write_address[0], self.symbolMap, self.info);
-        yield write_address[0], bs
+        ops.append(( write_address[0], bs))
         write_address[0] += len(bs)
 
 class NopPatchStep(PatchStep):
@@ -58,17 +57,17 @@ class NopPatchStep(PatchStep):
         self.ks = self.arch.getks(info)
          
     @decorator_inc_debug_level
-    def run(self, write_address:list):
+    def run(self, write_address:list, ops:list=[]):
         # prepare all code 
         self.start_address = self.arch.alignCodeAddress(self.start_address)
         self.end_address   = self.arch.alignCodeAddress(self.end_address)
         nopCode, count =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
         assert count == 1
         if  self.end_address == None:
-            yield self.start_address, nopCode
+            ops.append(( self.start_address, nopCode))
         else:
             for addr in range(self.start_address, self.end_address, len(nopCode)):
-                yield addr, nopCode
+                ops.append(( addr, nopCode))
 
 class AsmPatchStep(PatchStep):
     ''' 
@@ -82,7 +81,7 @@ class AsmPatchStep(PatchStep):
         self.asm = info['asm']
          
     @decorator_inc_debug_level
-    def run(self, write_address:list):
+    def run(self, write_address:list, ops:list=[]):
         # prepare all code 
         self.start_address = self.arch.alignCodeAddress(self.start_address)
         nopCode, count =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
@@ -92,7 +91,7 @@ class AsmPatchStep(PatchStep):
             logDebug(f'code {code}')
             inst, count = self.arch.asmCode(self.ks, self.subSymbol(code), addr)
             assert count == 1
-            yield addr, inst
+            ops.append(( addr, inst ))
             addr += len(inst)
 
 class ParasitePatchStep(PatchStep):
@@ -112,9 +111,8 @@ class ParasitePatchStep(PatchStep):
         if 'cflags' in info: self.compile_flags+=f' {info["cflags"]}'
 
     @decorator_inc_debug_level
-    def run(self, write_address:list):
-        address, bs =  next(self.compileSrcToCave(write_address))
-        yield address, bs
+    def run(self, write_address:list, ops:list=[]):
+        self.compileSrcToCave(write_address,ops)
 
 class BytesPatchStep(PatchStep):
     ''' 
@@ -127,8 +125,8 @@ class BytesPatchStep(PatchStep):
         self.bytes = info['bytes']
 
     @decorator_inc_debug_level
-    def run(self, write_address:list):
-        yield self.start_address, bytes(self.bytes)
+    def run(self, write_address:list, ops:list=[]):
+        ops.append(( self.start_address, bytes(self.bytes) ))
 
 class HookPatchStep(PatchStep):
     ''' 
@@ -149,15 +147,13 @@ class HookPatchStep(PatchStep):
         if 'cflags' in stepinfo: self.compile_flags+= ' '+stepinfo['cflags']
         self.skip_orgin_code   = stepinfo['skipcode'] if 'skipcode' in stepinfo else False;
 
-    def run(self, write_address:list):
+    def run(self, write_address:list, ops:list=[]):
         hook_address = self.start_address
-        fun_address, bs =  next(self.compileSrcToCave(write_address, f'-D HOOK_ADDRESS={hex(hook_address)}'))
-        yield fun_address, bs
+        self.compileSrcToCave(write_address, ops,f'-D HOOK_ADDRESS={hex(hook_address)}')
 
         stub_address = cave_address
 
-        for p in self.arch.handleBFunPatch(hook_address, fun_address, stub_address, self.reg, self.ks, self.cs, self.binfile, self.skip_orgin_code):
-            yield p
+        self.arch.handleBFunPatch(hook_address, fun_address, stub_address, self.reg, self.ks, self.cs, self.binfile, self.skip_orgin_code, ops)
 
 
 
