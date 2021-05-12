@@ -10,13 +10,13 @@ from ..util.log import *
 from ..util.util import *
 
 
-NEW_CAVE_METHOD_NEW_PROGRAM_HEADER_END = 0
+NEW_CAVE_METHOD_NEW_PROGRAM_HEADER_END = 0 # use this method, do not generate too many bytes to so
 NEW_CAVE_METHOD_USE_NOTE_SEGMENT       = 1
 NEW_CAVE_METHOD_TEXT_SEGMENT_END       = 2
-NEW_CAVE_METHOD_LAST_SEGMENT_END       = 3
+NEW_CAVE_METHOD_LAST_SEGMENT_END       = 3  # this method will append so many bytes in binary file
 NEW_CAVE_METHOD_MOVE_TEXT_DATA_SEGMENT = 4
 
-CAVE_METHOD = NEW_CAVE_METHOD_LAST_SEGMENT_END
+CAVE_METHOD = NEW_CAVE_METHOD_NEW_PROGRAM_HEADER_END
 
 new_ph_table_len = 0x1000
 
@@ -167,16 +167,14 @@ def insertParasite2ElfByNote(fn, bs, PAGE_SIZE=0x4000):
     open(fn,'wb').write( binbs)
     return inject_address+new_ph_table_len
 
-
-
 class ELFFile(BinFile):
 
     # create a new cave use new program header 
     @decorator_inc_debug_level
-    def new_cave_new_program_header_end(le, fn):
+    def new_cave_new_program_header_end(self,le):
         max_load_addr = 0;
-        binary = lief.parse(fn);
-        binbs  = bytearray(open(fn,'rb').read()) # read whole file content to memory 
+        binary = self.binary
+        binbs  = self.binbs # read whole file content to memory 
         e_CLASS     = binary.header.identity_class;
         e_phnum     = binary.header.numberof_segments
         e_phentsize = binary.header.program_header_size
@@ -201,20 +199,22 @@ class ELFFile(BinFile):
         max_load_addr += le + e_shentsize*(e_phnum+1)
         max_load_addr = getAlignAddr(max_load_addr, seg.alignment)
     
-        max_load_offset = max_load_addr-seg.virtual_address+seg.file_offset
-        if max_load_offset>e_shoff:
-            binbs = binbs[:e_shoff]+(b'\0'*(max_load_offset-e_shoff))
+        # assume section header is at the end of the file, and always reduce section header
+        max_load_offset = getAlignAddr(len(binbs), seg.alignment)
             
         # new segment 
         p_type   = 1 # PT_LOAD
         p_flags  = 7 # RWX
         p_vaddr  = p_paddr = inject_address;
-        p_filesz = p_memsz = max_load_addr-inject_address
+        p_filesz = p_memsz = le
         p_align  = 0x1000
-        p_offset = len(binbs)
+        p_offset = max_load_offset+new_ph_table_len
         program_header += constructProgramHeader( p_type  , p_offset, p_vaddr , p_paddr , p_filesz, p_memsz , p_flags , p_align  , e_CLASS)
-        binbs+= b'\0'*p_filesz
         new_e_phoff = len(binbs)
+        #put program_header
+        binbs+= program_header+ (b'\0'*(new_ph_table_len-len(program_header)))
+
+        binbs+= b'\0'*le
         new_e_phnum = e_phnum+1
     
         # change program segment number
@@ -226,10 +226,8 @@ class ELFFile(BinFile):
             offset=0x38; binbs[offset:offset+2] = struct.pack('H', new_e_phnum)
         else:  raise Exception(f' unknown ELF_CLASS {e_CLASS} ' )
     
-        #put program_header
-        binbs += program_header
     
-        if True:
+        if False:
             # update ELF header 
             if e_CLASS == lief.ELF.ELF_CLASS.CLASS32:
                 e_shoff = struct.unpack('I', binbs[0x20:0x24])[0]
@@ -240,11 +238,11 @@ class ELFFile(BinFile):
                 e_shoff = len(binbs)
                 binbs[0x28:0x30] = struct.pack('Q', e_shoff)
             else:  raise Exception(f' unknown ELF_CLASS {e_CLASS} ' )
-        #put program_header
-        binbs += section_header
+            binbs += section_header
     
         # write back modified data
-        open(fn,'wb').write( binbs)
+        self.binbs=binbs
+        self.binary = lief.parse(binbs)
         return inject_address
     
     # create a new cave use new program header 
@@ -608,6 +606,7 @@ class ELFFile(BinFile):
             # put section header to the end of the file 
             binbs += section_header
         self.binbs = binbs
+        logDebug(f'{getframeinfo(currentframe()).lineno} binbs {len(binbs)}')
         self.binary = lief.parse(self.binbs)
         return inject_address
 
@@ -746,7 +745,7 @@ class ELFFile(BinFile):
     def addCave(self, le):
         assert le>0, 'cave length should be large than zero'
         if CAVE_METHOD == NEW_CAVE_METHOD_NEW_PROGRAM_HEADER_END:
-            return new_cave_new_program_header_end(le, fn)
+            return self.new_cave_new_program_header_end(le)
         elif CAVE_METHOD == NEW_CAVE_METHOD_USE_NOTE_SEGMENT:
             return new_cave_note_segment(le, fn)
         elif CAVE_METHOD == NEW_CAVE_METHOD_TEXT_SEGMENT_END:

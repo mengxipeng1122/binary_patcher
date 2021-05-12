@@ -3,6 +3,7 @@
 
 import sys
 
+from inspect import currentframe, getframeinfo
 from .color import *
 
 '''

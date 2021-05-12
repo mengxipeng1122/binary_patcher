@@ -113,7 +113,7 @@ class BinaryPatcher(object):
             logInfo(f'<+>hanling patch {name} ...')
             self.run_patch(patch)
 
-    
+    @decorator_inc_debug_level    
     def write(self, fn):
         assert self.binfmt.binbs!=None, f'binbs equals to None when write '
         open(fn,'wb').write(self.binfmt.binbs)
