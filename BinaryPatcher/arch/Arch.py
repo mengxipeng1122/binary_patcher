@@ -119,9 +119,6 @@ class Arch(object):
     @decorator_inc_debug_level
     def alignAddress(self, address, mask=0xfffffffc):
         if address == None: return None
-        if isinstance(address, list): 
-            address[0]=self.alignAddress(address[0], mask)
-            return 
         if isinstance(address, int): return address & mask
         raise Exception(f'unsupported augment {address} in alignCodeAddress ')
 

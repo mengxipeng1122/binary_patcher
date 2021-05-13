@@ -36,7 +36,7 @@ class PatchStep:
 
     @decorator_inc_debug_level
     def compileSrcToCave(self, write_address:list, ops:list, extera_compile_flags=""):
-        self.arch.alignCodeAddress(write_address)
+        write_address[0] = self.arch.alignCodeAddress(write_address[0])
         objfn = os.path.join('/tmp', os.path.basename(f'{self.srcfn}.1.o'))
         workdir = os.path.dirname(self.srcfn)
         if workdir == ' '*len(workdir): workdir = '.'
