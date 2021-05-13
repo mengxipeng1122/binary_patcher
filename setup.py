@@ -4,7 +4,7 @@ from setuptools import find_packages, setup, Command
 
 REQUIRES_PYTHON = '>=3.6.0'
 setup(
-        name='BinaryPatcher'
+        name='BinaryPatcher',
         version='0.0.1',
         scripts=[],
         description='a static binary patching framework',

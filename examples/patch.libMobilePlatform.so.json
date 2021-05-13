@@ -236,13 +236,24 @@
       ]
     },
     {
-      "enable": true,
+      "enable": false,
       "name": "test",
       "steps": [
         {
           "src": "hook_retro_serialize_size.c",
-          "startAddress": "%{retro_serialize_size}%",
+          "startAddress": "0x321140",
           "type": "HookPatch"
+        }
+      ]
+    },
+    {
+      "enable": true,
+      "name": "test",
+      "steps": [
+        {
+          "src": "patch_retro_reset.c",
+          "startAddress": "%{retro_reset}%",
+          "type": "BFunPatch"
         }
       ]
     }

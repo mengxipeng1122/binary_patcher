@@ -4,3 +4,6 @@ __pycache__
 examples/test*.py
 tt.py
 
+build
+dist
+BinaryPatcher.egg-info

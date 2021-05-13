@@ -261,3 +261,35 @@ class HookPatchStep(PatchStep):
         #  write jmp back instructions
         inst, count = self.putAsmCodesToCave(self.arch.getJumpCode(write_cave_address[0], jump_back_address, self.info), write_cave_address, ops); assert count ==1;
 
+class BFunPatchStep(PatchStep):
+    ''' 
+        handle BFunPatch 
+    ''' 
+    name = 'BFunPatch'
+    @decorator_inc_debug_level
+    def __init__(self, info, arch, binfmt, symbolMap):
+        PatchStep.__init__(self, info, arch, binfmt, symbolMap)
+        self.srcfn             = info['src']
+        self.compiler          = self.arch.compiler    
+        if 'compiler' in info: self.compiler = info['compiler']
+        self.compile_flags     = self.arch.compile_flags
+        if 'cflags' in info: self.compile_flags+= ' '+info['cflags']
+        self.ks = self.arch.getks(info)
+        self.cs = self.arch.getcs(info)
+
+    def run(self, write_cave_address:list, ops:list=[]):
+        hook_address = self.arch.alignCodeAddress(self.start_address)
+
+        logDebug(f'')
+        fun_address = self.compileSrcToCave(write_cave_address, ops,f'-D FUN_ADDRESS={hex(hook_address)}')
+        fun_address = self.arch.alignCodeAddress(fun_address)
+        logDebug(f'')
+
+        stub_address = write_cave_address[0] = self.arch.alignCodeAddress(write_cave_address[0])
+        nop_ins,count = asmCode(self.ks, self.arch.getNopCode(self.info)); assert count ==1;
+        ################################################################################ 
+        # write jmp instruction
+        logDebug(f" hook_address {hex(hook_address)}")
+        logDebug(f" fun_address  {hex(fun_address )}")
+        inst, count = self.putAsmCodesToCave(self.arch.getJumpCode(hook_address, fun_address, self.info), write_cave_address, ops); assert count ==1;
+
