@@ -36,10 +36,6 @@ class BinFile( object ):
         raise NotImplementedError("Should have implemented this ")
 
     @decorator_inc_debug_level
-    def getArch(self):
-        raise NotImplementedError("Should have implemented this ")
-
-    @decorator_inc_debug_level
     def getInfo(self):
         return self.info
 
@@ -49,4 +45,8 @@ class BinFile( object ):
 
     @decorator_inc_debug_level
     def patch(self, addr, bs):
+        raise NotImplementedError("Should have implemented this ")
+
+    @decorator_inc_debug_level
+    def readByte(self, addr, le):
         raise NotImplementedError("Should have implemented this ")

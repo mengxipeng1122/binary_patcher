@@ -4,10 +4,9 @@
 import sys
 import struct
 
-from keystone import *
-from capstone import *
 
 from ..util.log import *
+from ..util.util import *
 from .Arch import *
 
 class Arm(Arch):
@@ -26,11 +25,35 @@ class Arm(Arch):
         self.thumbMode       = thumbMode;
 
     @decorator_inc_debug_level
-    def getNopCode(self):
+    def getNopCode(self, info=None):
         return "nop"
 
+    def getJumpCode(self, from_address, to_address,info=None): 
+        return f"B {hex(to_address)}"
+
+    def getCallCode(self, caller_address, callee_address, info=None): 
+        return f"BL {hex(callee_address)}"
+
+    def getSaveContextCode(self, info=None): 
+        return """
+                    PUSH \t {LR};
+                    PUSH \t {R0-R7};
+                    PUSH \t {R8-R12}; 
+                    MRS  \t LR, CPSR;
+                    PUSH \t {LR};
+                """
+
+    def getRestoreContextCode(self, info=None): 
+        return """
+                    POP  \t {LR};
+                    MSR  \t CPSR, LR;
+                    POP  \t {R8-R12}; 
+                    POP  \t {R0-R7};
+                    POP  \t {LR};
+                  """
+
     @decorator_inc_debug_level
-    def parsePlTSecUpdateSymol(self, sec, address, pltmap, m ):
+    def parsePlTSecUpdateSymol(self, sec, address, pltmap, m, info=None):
         # trick get __GLOBAL_OFFSET_TABLE_ address
         ins0, ins1, ins2, ins3, ins4 = struct.unpack('IIIII', sec[0x00:0x14])
         if 0xe52de004 == ins0 and 0xe59fe004 == ins1 and 0xe08fe00e == ins2 and 0xe5bef008 == ins3:
@@ -88,11 +111,11 @@ class Arm(Arch):
 
 
     @decorator_inc_debug_level
-    def dolink(self, bs, link_address, symboltab, binary, binary_sectab, info):
+    def dolink(self, bs, link_address, symboltab, relocs, sectab, info):
         ks = self.getks(info)
         bs = bytearray(bs)
         # write bytes for link 
-        for reloc in binary.object_relocations:
+        for reloc in relocs:
             assert reloc.has_symbol, f'has not symbol in reclocation {reloc}'
             logDebug(f'reloc {reloc}')
             if not reloc.has_section: continue
@@ -107,8 +130,7 @@ class Arm(Arch):
                 else: raise Exception(f"can not found address for symbol {reloc.symbol.name} ")
             else:
                 if reloc.symbol.type == lief.ELF.SYMBOL_TYPES.SECTION:
-                    sec_name = binary.sections[reloc.symbol.shndx].name
-                    symbol_addr = binary_sectab[sec_name]
+                    symbol_addr = sectab[reloc.symbol.shndx]
             assert symbol_addr!=0, f'symboltab error {symboltab} {reloc.symbol.name} {reloc}'
             S = symbol_addr;
             A = struct.unpack('I', bs[offset:offset+4])[0]
@@ -124,7 +146,7 @@ class Arm(Arch):
         
             elif reloc.type == 10: # R_ARM_THM_CALL
                 code = f'BLX {hex(symbol_addr)}'
-                binCode, count = Arch.asmCode(self, ks, code, address); 
+                binCode, count = asmCode(ks, code, address); 
                 assert count == 1
                 ins = bytearray(binCode)
                 bs[offset:offset+len(ins)] = ins

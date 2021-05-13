@@ -234,6 +234,17 @@
           "type": "NopPatch"
         }
       ]
+    },
+    {
+      "enable": true,
+      "name": "test",
+      "steps": [
+        {
+          "src": "hook_retro_serialize_size.c",
+          "startAddress": "%{retro_serialize_size}%",
+          "type": "HookPatch"
+        }
+      ]
     }
   ],
   "SYMBOL_MAP": {

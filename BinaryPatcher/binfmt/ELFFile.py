@@ -606,7 +606,6 @@ class ELFFile(BinFile):
             # put section header to the end of the file 
             binbs += section_header
         self.binbs = binbs
-        logDebug(f'{getframeinfo(currentframe()).lineno} binbs {len(binbs)}')
         self.binary = lief.parse(self.binbs)
         return inject_address
 
@@ -764,5 +763,13 @@ class ELFFile(BinFile):
                 self.binbs[off:off+len(bs)] = bs
                 return 
         raise Exception(f'write {hex(addr)} -- {len(bs)} failed' )
+
+    @decorator_inc_debug_level
+    def readByte(self, addr, le):
+        for t, seg in enumerate(self.binary.segments):
+            if addr>= seg.virtual_address and addr+le < seg.virtual_address + seg.virtual_size: 
+                off = seg.file_offset + ( addr - seg.virtual_address )
+                return bytes(seg.content[off:off+le])
+        raise Exception(f'read {hex(addr)} -- {le} failed' )
     
 

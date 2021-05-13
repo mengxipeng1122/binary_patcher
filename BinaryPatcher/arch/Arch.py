@@ -3,6 +3,9 @@
 
 import sys
 import lief
+from keystone import *
+from capstone import *
+
 from ..util.log import *
 
 class Arch(object):
@@ -23,16 +26,24 @@ class Arch(object):
             self.compile_flags = info['cflags']
         
     @decorator_inc_debug_level
-    def getNopInstruction(self,address, info=None): 
+    def getNopCode(self, info=None):
         raise NotImplementedError( "Should have implemented this" )
 
-    @decorator_inc_debug_level
-    def asmCode(self, ks, code, address=0, info=None):
-        binCode, count = ks.asm(code, address); 
-        return bytes(binCode), count
+    def getJumpCode(self, from_address, to_address,info=None): 
+        raise NotImplementedError( "Should have implemented this" )
+
+    def getCallCode(self, caller_address, callee_address, info=None): 
+        raise NotImplementedError( "Should have implemented this" )
+
+    def getSaveContextCode(self, info=None): 
+        raise NotImplementedError( "Should have implemented this" )
+
+    def getRestoreContextCode(self, info=None): 
+        raise NotImplementedError( "Should have implemented this" )
+
 
     @decorator_inc_debug_level
-    def parsePlTSecUpdateSymol(self, sec, address, pltmap, m ):
+    def parsePlTSecUpdateSymol(self, sec, address, pltmap, m, info=None ):
         '''
             this method parse .plt section dat to update a map of symbol name ->  plt stub address 
             augments :
@@ -58,22 +69,23 @@ class Arch(object):
         return Ks(self.ks_arch, self.ks_mode)
 
     @decorator_inc_debug_level
-    def dolink(self, bs, link_address, symboltab, binary, binary_sectab, info):
+    def getcs(self, info=None):
+        return Cs(self.cs_arch, self.cs_mode)
+
+    @decorator_inc_debug_level
+    def dolink(self, bs, link_address, symboltab, relocs, sectab, info=None):
         raise NotImplementedError( "Should have implemented this" )
 
     @decorator_inc_debug_level
-    def alignAddress(self, address, mask=0xfffffffc):
+    def alignAddress(self, address, mask=0xfffffffc, info=None):
         if isinstance(address, int): return address & mask
         raise Exception(f'unsupported augment {address} in alignCodeAddress ')
 
-
-
     @decorator_inc_debug_level
-    def alignCodeAddress(self, address):
+    def alignCodeAddress(self, address, info=None):
         raise NotImplementedError( "Should have implemented this" )
         
     @decorator_inc_debug_level
-    def alignDataAddress(self, address):
+    def alignDataAddress(self, address, info=None):
         raise NotImplementedError( "Should have implemented this" )
-
         

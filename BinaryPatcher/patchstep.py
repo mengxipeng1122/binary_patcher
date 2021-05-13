@@ -23,7 +23,7 @@ class PatchStep:
         self.end_address   = self.calAddress(info['endAddress'  ]) if 'endAddress' in info else None
 
     @decorator_inc_debug_level
-    def run(self, write_address:list, ops:list=[]):
+    def run(self, write_cave_address:list, ops:list=[]):
         raise NotImplementedError('Should have implemented this ')
 
     @decorator_inc_debug_level
@@ -35,25 +35,41 @@ class PatchStep:
     @decorator_inc_debug_level
     def calAddress(self,text):
         if text == None: return None
-        return eval(self.subSymbol(text))
+        if isinstance(text, str): return eval(self.subSymbol(text))
+        if isinstance(text, int): return text
+        raise Exception(f'unsupported text type {text} {type(text)}')
 
     @decorator_inc_debug_level
-    def compileSrcToCave(self, write_address:list, ops:list, extera_compile_flags=""):
-        write_address[0] = self.arch.alignCodeAddress(write_address[0])
-        objfn = os.path.join('/tmp', os.path.basename(f'{self.srcfn}.1.o'))
+    def writeBytesToCave(self, bs, write_cave_address:list, ops:list):
+        ops.append(( write_cave_address[0],bs))
+        write_cave_address[0] += len(bs)
+
+    @decorator_inc_debug_level
+    def putAsmCodesToCave(self, code, write_cave_address:list, ops:list):
+        inst, count = asmCode(self.ks, code, write_cave_address[0], self.info);
+        self.writeBytesToCave(inst, write_cave_address, ops)
+        return inst, count
+
+
+    @decorator_inc_debug_level
+    def compileSrcToCave(self, write_cave_address:list, ops:list, extera_compile_flags=""):
+        write_cave_address[0] = self.arch.alignCodeAddress(write_cave_address[0])
+        objfn = os.path.join('/tmp', os.path.basename(f'{self.srcfn}.o'))
         workdir = os.path.dirname(self.srcfn)
         if workdir == ' '*len(workdir): workdir = '.'
-        cmd = f'cd {workdir}  && pwd && {self.compiler} -c -Wall -Werror -I.  {self.compile_flags} -o {objfn} {self.srcfn}'
+        cmd = f'cd {workdir}  && pwd && {self.compiler} -c -Wall -Werror -I.  {self.compile_flags} {extera_compile_flags} -o {objfn} {self.srcfn}'
+        logDebug(f'go here')
         runCmd(cmd, showCmd=True, mustOk=True);
-        bs, fun_addr = self.linkObjectFile(objfn, write_address[0], self.symbolMap, self.info);
-        ops.append(( write_address[0], bs))
-        write_address[0] += len(bs)
+        logDebug(f'go here')
+        bs, fun_addr = self.linkObjectFile(objfn, write_cave_address[0], self.symbolMap, self.info);
+        self.writeBytesToCave(bs, write_cave_address, ops)
+        return fun_addr
 
     @decorator_inc_debug_level
-    def writeObjectFile(self, binary, write_address, info=None): 
+    def writeObjectFile(self, binary, write_cave_address:int, info=None): 
         '''
             binary -- parsed variable by lief library
-            write_address -- address that entire bytes will write 
+            write_cave_address -- address that entire bytes will write 
             put binary data to a wrote for linking, 
             work only for ELF format now
         '''
@@ -66,12 +82,12 @@ class PatchStep:
                     bs += b'\0'*sec.size
                 else:
                     bs += bytes(sec.content)
-                sec.virtual_address=write_address; # set linked virtual_address
-                write_address += sec.size
-                next_write_address = getAlignAddr(write_address, 0x10);
-                bs += b'\0'*(next_write_address-write_address)
-                write_address=next_write_address
-                sectab[sec.name] = sec.virtual_address # record all section address 
+                sec.virtual_address=write_cave_address; # set linked virtual_address
+                write_cave_address += sec.size
+                next_write_address = getAlignAddr(write_cave_address, 0x10);
+                bs += b'\0'*(next_write_address-write_cave_address)
+                write_cave_address=next_write_address
+                sectab[i] = sec.virtual_address # record all section address 
         symboltab = {} 
         # update symbol table for local variables
         if binary.has_static_symbol:
@@ -85,18 +101,18 @@ class PatchStep:
                         symbol_address = binary.sections[symbol.value].virtual_address
                         symboltab[symbol.name] = symbol_address
                         continue
-                sec_name = binary.sections[symbol.shndx].name
-                symbol_address = sectab[sec_name] + symbol.value
+                symbol_address = sectab[symbol.shndx] + symbol.value
                 symboltab[symbol.name] = symbol_address
         return bs, sectab, symboltab
 
     @decorator_inc_debug_level
     def linkObjectFile(self, objfn, link_address, symboltab, info=None): 
         binary = lief.parse(objfn)
-        bs, binary_sectab, binary_symboltab = self.writeObjectFile(binary, link_address);
+        bs, sectab, binary_symboltab = self.writeObjectFile(binary, link_address, info);
         symboltab.update(binary_symboltab)
-        logDebug(f'binary_sectab {binary_sectab}')
-        return self.arch.dolink( bs, link_address, symboltab, binary, binary_sectab,  info)
+        logDebug(f'sectab {sectab}')
+        return self.arch.dolink( bs, link_address, symboltab, binary.object_relocations, sectab,  info)
+
 
 
 class NopPatchStep(PatchStep):
@@ -111,11 +127,11 @@ class NopPatchStep(PatchStep):
         self.ks = self.arch.getks(info)
          
     @decorator_inc_debug_level
-    def run(self, write_address:list, ops:list=[]):
+    def run(self, write_cave_address:list, ops:list=[]):
         # prepare all code 
         if self.start_address != None: self.start_address =self.arch.alignCodeAddress(self.start_address)
         if self.end_address != None:   self.end_address   = self.arch.alignCodeAddress(self.end_address)
-        nopCode, count =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
+        nopCode, count =  asmCode(self.ks, self.arch.getNopCode(self.info), self.start_address)
         assert count == 1
         if  self.end_address == None:
             ops.append(( self.start_address, nopCode))
@@ -135,15 +151,15 @@ class AsmPatchStep(PatchStep):
         self.asm = info['asm']
          
     @decorator_inc_debug_level
-    def run(self, write_address:list, ops:list=[]):
+    def run(self, write_cave_address:list, ops:list=[]):
         # prepare all code 
         self.start_address = self.arch.alignCodeAddress(self.start_address)
-        nopCode, count =  self.arch.asmCode(self.ks, self.arch.getNopCode(), self.start_address)
+        nopCode, count =  asmCode(self.ks, self.arch.getNopCode(self.info), self.start_address)
         assert count == 1
         addr = self.start_address
         for code in self.asm:
             logDebug(f'code {code}')
-            inst, count = self.arch.asmCode(self.ks, self.subSymbol(code), addr)
+            inst, count = asmCode(self.ks, self.subSymbol(code), addr)
             assert count == 1
             ops.append(( addr, inst ))
             addr += len(inst)
@@ -165,8 +181,8 @@ class ParasitePatchStep(PatchStep):
         if 'cflags' in info: self.compile_flags+=f' {info["cflags"]}'
 
     @decorator_inc_debug_level
-    def run(self, write_address:list, ops:list=[]):
-        self.compileSrcToCave(write_address,ops)
+    def run(self, write_cave_address:list, ops:list=[]):
+        self.compileSrcToCave(write_cave_address,ops)
 
 class BytesPatchStep(PatchStep):
     ''' 
@@ -179,7 +195,7 @@ class BytesPatchStep(PatchStep):
         self.bytes = info['bytes']
 
     @decorator_inc_debug_level
-    def run(self, write_address:list, ops:list=[]):
+    def run(self, write_cave_address:list, ops:list=[]):
         ops.append(( self.start_address, bytes(self.bytes) ))
 
 class HookPatchStep(PatchStep):
@@ -189,25 +205,59 @@ class HookPatchStep(PatchStep):
     name = 'HookPatch'
     @decorator_inc_debug_level
     def __init__(self, info, arch, binfmt, symbolMap):
-        assert cave_length>0, " cave_length == 0 when do a hook patch "
         PatchStep.__init__(self, info, arch, binfmt, symbolMap)
-        self.offset             = eval(info['offset']) if 'offset' in info else 0
-        self.srcfn             = stepinfo['src']
+        self.offset            = eval(info['offset']) if 'offset' in info else 0
+        self.srcfn             = info['src']
         self.hook_address      = self.start_address
-        self.arch              = arch
         self.compiler          = self.arch.compiler    
-        if 'compiler' in stepinfo: self.compiler = stepinfo['compiler']
+        if 'compiler' in info: self.compiler = info['compiler']
         self.compile_flags     = self.arch.compile_flags
-        if 'cflags' in stepinfo: self.compile_flags+= ' '+stepinfo['cflags']
-        self.skip_orgin_code   = stepinfo['skipcode'] if 'skipcode' in stepinfo else False;
+        if 'cflags' in info: self.compile_flags+= ' '+info['cflags']
+        self.ks = self.arch.getks(info)
+        self.cs = self.arch.getcs(info)
 
-    def run(self, write_address:list, ops:list=[]):
-        hook_address = self.start_address
-        self.compileSrcToCave(write_address, ops,f'-D HOOK_ADDRESS={hex(hook_address)}')
+    def run(self, write_cave_address:list, ops:list=[]):
+        hook_address = self.arch.alignCodeAddress(self.start_address)
 
-        stub_address = cave_address
+        logDebug(f'')
+        fun_address = self.compileSrcToCave(write_cave_address, ops,f'-D HOOK_ADDRESS={hex(hook_address)}')
+        logDebug(f'')
 
-        self.arch.handleBFunPatch(hook_address, fun_address, stub_address, self.reg, self.ks, self.cs, self.binfile, self.skip_orgin_code, ops)
+        stub_address = write_cave_address[0] = self.arch.alignCodeAddress(write_cave_address[0])
+        nop_ins,count = asmCode(self.ks, self.arch.getNopCode(self.info)); assert count ==1;
+        # write jmp stub instructions
+        jmp_stub_inst, count = asmCode(self.ks, self.arch.getJumpCode(hook_address, stub_address, self.info), hook_address); assert count ==1;
+        # read original instructions 
+        jmp_stub_bs = jmp_stub_inst
+        original_bs = b''
+        while True:
+            le_jmp_stub_bs = len(jmp_stub_bs)
+            le_original_bs = len(original_bs)
+            if le_jmp_stub_bs > 0x20: raise  Exception('many trails for jump stub instruction')
+            if le_original_bs > 0x20: raise  Exception('many trails for jump stub instruction')
+            if isValidInstructions(self.cs, self.ks, original_bs, hook_address):
+                if le_jmp_stub_bs == le_original_bs: break
+            if le_jmp_stub_bs > le_original_bs:
+                original_bs = self.binfmt.readByte(hook_address, le_original_bs+1)
+                continue
+            else:
+                jmp_stub_bs += nop_ins
+                continue
+        ops.append( ( hook_address, jmp_stub_bs ) )
 
+        jump_back_address = hook_address+len(jmp_stub_bs);
 
+        ################################################################################ 
+        # write stub  
+        #  write save context code
+        self.putAsmCodesToCave(self.arch.getSaveContextCode(self.info), write_cave_address, ops)
+        #  write call function code
+        inst, count = self.putAsmCodesToCave(self.arch.getCallCode(write_cave_address[0], fun_address, self.info), write_cave_address, ops); assert count ==1
+        #  write restore context code
+        self.putAsmCodesToCave(self.arch.getRestoreContextCode(self.info), write_cave_address, ops)
+        #  write original instructions
+        fixed_original_bs = moveCode(self.cs, self.ks, original_bs, hook_address, write_cave_address[0], self.info)
+        self.writeBytesToCave(fixed_original_bs, write_cave_address, ops)
+        #  write jmp back instructions
+        inst, count = self.putAsmCodesToCave(self.arch.getJumpCode(write_cave_address[0], jump_back_address, self.info), write_cave_address, ops); assert count ==1;
 
