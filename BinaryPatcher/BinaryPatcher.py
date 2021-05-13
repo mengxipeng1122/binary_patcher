@@ -83,7 +83,7 @@ class BinaryPatcher(object):
 
     @decorator_inc_debug_level
     def run_patch_step(self, step):
-        obj = patchstep_map[step['type']](step, self.arch, self.symbolMap)
+        obj = patchstep_map[step['type']](step, self.arch, self.binfmt, self.symbolMap)
         run_result = []
         obj.run(self.write_cave_address, run_result)
         for address, binaries in run_result:
