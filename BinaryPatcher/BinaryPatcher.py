@@ -24,17 +24,18 @@ class BinaryPatcher(object):
         if info != None:
             self.binfmt         = bin_fmt_clzs[ info['BINFMT']['name'] ](info['BINFMT'])
             self.arch           = arch_clsz[ info['ARCH']['name'] ](info['ARCH'])
-            CAVE_LENGTH = info ['CAVE_LENGTH']
-            self.cave_length    = eval(CAVE_LENGTH) if isinstance(CAVE_LENGTH, str) else CAVE_LENGTH
-            self.symbolMap      = {k:eval(v) for k,v in info['SYMBOL_MAP'].items()}
-            self.patchesList    = info['PATCHES']    
+            if 'CAVE_LENGTH' in info:
+                CAVE_LENGTH = info ['CAVE_LENGTH'] 
+                self.cave_length    = eval(CAVE_LENGTH) if isinstance(CAVE_LENGTH, str) else CAVE_LENGTH
+            self.symbolMap      = {k:eval(v) for k,v in info['SYMBOL_MAP'].items()} if 'SYMBOL_MAP' in info else {}
+            self.patchesList    = info['PATCHES'] if 'PATCHES' in info else []   
 
     def load(self, fn):
         if self.binfmt == None:
             fm = magic.Magic().from_buffer(open(fn,'rb').read())
             if fm in bin_fmt_magic_map:
                 self.binfmt = bin_fmt_magic_map[fm]()
-                logInfo(f" {fn} is binary format {self.binfmt.getName()} have magic  {fm} ");
+                logInfo(f" {fn} is binary format {self.binfmt.name} have magic  {fm} ");
         assert self.binfmt != None, f'unsupported binary format for file {fn}'
         ok = self.binfmt.load(fn)
         assert ok, f'input file {fn} is not binary format given'
@@ -59,9 +60,10 @@ class BinaryPatcher(object):
             self.patchesList.insert(idx, newPatch)
             return idx
 
-    def addPatchStep(self, typ, startAddress, info, endAddress=None, patchIdx=-1):
+    def addPatchStep(self, typ, startAddress=None, info=None, endAddress=None, patchIdx=-1):
         assert typ in patchstep_map, f'have no {typ} patch step ' 
-        assert isinstance(startAddress, str), f'{startAddress} is not of type str' 
+        if startAddress != None:
+            assert isinstance(startAddress, str), f'{startAddress} is not of type str' 
         if endAddress!=None:
             assert isinstance(endAddress, str), f'{endAddress} is not of type str' 
         step = {
@@ -69,7 +71,7 @@ class BinaryPatcher(object):
             'startAddress': startAddress,
             'endAddress'  : endAddress,
             }
-        step.update(info)
+        if info != None: step.update(info)
         self.patchesList[patchIdx]['steps'].append(step)
 
     def getInfo(self):

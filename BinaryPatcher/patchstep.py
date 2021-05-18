@@ -50,7 +50,6 @@ class PatchStep:
         self.writeBytesToCave(inst, write_cave_address, ops)
         return inst, count
 
-
     @decorator_inc_debug_level
     def compileSrcToCave(self, write_cave_address:list, ops:list, extera_compile_flags=""):
         write_cave_address[0] = self.arch.alignCodeAddress(write_cave_address[0])
@@ -147,7 +146,9 @@ class AsmPatchStep(PatchStep):
     @decorator_inc_debug_level
     def __init__(self, info, arch, binfmt, symbolMap):
         PatchStep.__init__(self, info, arch, binfmt, symbolMap)
+        logDebug(" go here ");
         self.ks = self.arch.getks(info)
+        logDebug(f" go here {self.ks}");
         self.asm = info['asm']
          
     @decorator_inc_debug_level
@@ -159,7 +160,10 @@ class AsmPatchStep(PatchStep):
         addr = self.start_address
         for code in self.asm:
             logDebug(f'code {code}')
-            inst, count = asmCode(self.ks, self.subSymbol(code), addr)
+            code = self.subSymbol(code)
+            logDebug(f'code {code} {self.ks}')
+            inst, count = asmCode(self.ks, code, addr)
+            logDebug(" go here ");
             assert count == 1
             ops.append(( addr, inst ))
             addr += len(inst)
@@ -175,9 +179,9 @@ class ParasitePatchStep(PatchStep):
         PatchStep.__init__(self, info, arch, binfmt, symbolMap)
         self.offset             = eval(info['offset']) if 'offset' in info else 0
         self.srcfn              = info['src']
-        self.compiler           = self.arch.compiler    
+        self.compiler           = self.arch.info['compiler']
         if 'compiler' in info: self.compiler = info['compiler']
-        self.compile_flags      = self.arch.compile_flags   
+        self.compile_flags      = self.arch.info['cflags']
         if 'cflags' in info: self.compile_flags+=f' {info["cflags"]}'
 
     @decorator_inc_debug_level
@@ -209,9 +213,9 @@ class HookPatchStep(PatchStep):
         self.offset            = eval(info['offset']) if 'offset' in info else 0
         self.srcfn             = info['src']
         self.hook_address      = self.start_address
-        self.compiler          = self.arch.compiler    
+        self.compiler          = self.arch.info['compiler']
         if 'compiler' in info: self.compiler = info['compiler']
-        self.compile_flags     = self.arch.compile_flags
+        self.compile_flags     = self.arch.info['cflags']
         if 'cflags' in info: self.compile_flags+= ' '+info['cflags']
         self.ks = self.arch.getks(info)
         self.cs = self.arch.getcs(info)
@@ -270,9 +274,9 @@ class BFunPatchStep(PatchStep):
     def __init__(self, info, arch, binfmt, symbolMap):
         PatchStep.__init__(self, info, arch, binfmt, symbolMap)
         self.srcfn             = info['src']
-        self.compiler          = self.arch.compiler    
+        self.compiler          = self.arch.info['compiler']
         if 'compiler' in info: self.compiler = info['compiler']
-        self.compile_flags     = self.arch.compile_flags
+        self.compile_flags     = self.arch.info['cflags']
         if 'cflags' in info: self.compile_flags+= ' '+info['cflags']
         self.ks = self.arch.getks(info)
         self.cs = self.arch.getcs(info)

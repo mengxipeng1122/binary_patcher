@@ -10,14 +10,13 @@ from ..util.log import *
 
 class GBARomFile(BinFile):
 
+    name    = 'GBARom'
+
     @decorator_inc_debug_level
     def __init__(self, info=None):
         BinFile.__init__(self, info);        
         pass
 
-    @decorator_inc_debug_level
-    def getName(self):
-        return "GBARomFile"
 
     @decorator_inc_debug_level
     def load(self, fn):

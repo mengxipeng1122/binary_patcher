@@ -2,11 +2,9 @@
 # -*- coding: utf-8 -*-
 
 
-from .Arm import *
+from .Arch  import *
+from .Arm   import *
 from .M6502 import *
 
-arch_clsz = {
-        'ARM': Arm,
-        'M6502': M6502,
-}
+arch_clsz = { obj.name : obj for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and issubclass(obj, Arch) and obj.name != None }
 

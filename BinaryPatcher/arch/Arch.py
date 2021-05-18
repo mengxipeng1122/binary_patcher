@@ -13,17 +13,15 @@ class Arch(object):
         a abstract class for all architecture class
     '''
 
-    compiler        = None
-    compile_flags   = ""
+    info            = None
+    name            = None
 
     @decorator_inc_debug_level
-    def __init__(self, ks_arch, ks_mode, cs_arch, cs_mode, info=None):
-        self.ks_arch = ks_arch 
-        self.ks_mode = ks_mode 
-        self.cs_arch = cs_arch 
-        self.cs_mode = cs_mode 
-        if info != None and 'cflags' in info:
-            self.compile_flags = info['cflags']
+    def __init__(self, info=None):
+        if info == None:
+            info = {}
+        info ['name']= self.name
+        self.info  = info
         
     @decorator_inc_debug_level
     def getNopCode(self, info=None):
@@ -56,21 +54,15 @@ class Arch(object):
     
     @decorator_inc_debug_level
     def getInfo(self):
-        return {
-            'KS_ARCH' : self.ks_arch,
-            'KS_MODE' : self.ks_mode,
-            'CS_ARCH' : self.cs_arch,
-            'CS_MODE' : self.cs_mode,
-            'cflags'  : self.compile_flags,
-        }
+        return self.info
     
     @decorator_inc_debug_level
     def getks(self, info=None):
-        return Ks(self.ks_arch, self.ks_mode)
+        return Ks(self.info['KS_ARCH'], self.info['KS_MODE'])
 
     @decorator_inc_debug_level
     def getcs(self, info=None):
-        return Cs(self.cs_arch, self.cs_mode)
+        return Cs(self.info['CS_ARCH'], self.info['CS_MODE'])
 
     @decorator_inc_debug_level
     def dolink(self, bs, link_address, symboltab, relocs, sectab, info=None):

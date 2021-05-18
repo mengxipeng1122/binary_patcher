@@ -10,27 +10,41 @@ from ..util.util import *
 from .Arch import *
 
 class Arm(Arch):
-    thumbMode       = False
+    name            = 'ARM'
 
     @decorator_inc_debug_level
     def __init__(self, info=None):
-        thumbMode = False
-        if info != None and 'ThumbMode' in info:
-            thumbMode = info['ThumbMode']
-        if thumbMode:
-            Arch.__init__(self, KS_ARCH_ARM, KS_MODE_THUMB, CS_ARCH_ARM, CS_MODE_THUMB, info)
+        Arch.__init__(self, info)
+        if 'ThumbMode' not in self.info: self.info ['ThumbMode'] = False;
+        if 'compiler'  not in self.info: self.info ['compiler' ] = 'arm-linux-gnueabihf-gcc'
+        if 'KS_ARCH'   not in self.info: self.info['KS_ARCH'] = KS_ARCH_ARM;
+        if 'CS_ARCH'   not in self.info: self.info['CS_ARCH'] = CS_ARCH_ARM;
+        if self.info['ThumbMode']:
+            self.info['KS_MODE'] = KS_MODE_THUMB;
+            self.info['CS_MODE'] = CS_MODE_THUMB;
         else:
-            Arch.__init__(self, KS_ARCH_ARM, KS_MODE_ARM, CS_ARCH_ARM, CS_MODE_ARM, info)
-        self.compiler        = 'arm-linux-gnueabihf-gcc'
-        self.thumbMode       = thumbMode;
+            self.info['KS_MODE'] = KS_MODE_ARM;
+            self.info['CS_MODE'] = CS_MODE_ARM;
+
+    @decorator_inc_debug_level
+    def updateThumbMode(self):
+        if self.info['ThumbMode']:
+            self.info['KS_MODE'] = KS_MODE_THUMB;
+            self.info['CS_MODE'] = CS_MODE_THUMB;
+        else:
+            self.info['KS_MODE'] = KS_MODE_ARM;
+            self.info['CS_MODE'] = CS_MODE_ARM;
+
 
     @decorator_inc_debug_level
     def getNopCode(self, info=None):
         return "nop"
 
+    @decorator_inc_debug_level
     def getJumpCode(self, from_address, to_address,info=None): 
         return f"B {hex(to_address)}"
 
+    @decorator_inc_debug_level
     def getCallCode(self, caller_address, callee_address, info=None): 
         return f"BL {hex(callee_address)}"
 
@@ -74,13 +88,6 @@ class Arm(Arch):
                     m[symbolname] = address + o 
 
     @decorator_inc_debug_level
-    def getInfo(self):
-        info = Arch.getInfo(self)
-        info['name'] = 'ARM'
-        info['ThumbMode'] = self.thumbMode;
-        return info
-        
-    @decorator_inc_debug_level
     def compileObjectFile(self, srcfn, objfn, workdir, compiler, compile_flags, info):
         if 'ThumbMode' in info:
             if info['ThumbMode']:
@@ -96,18 +103,17 @@ class Arm(Arch):
 
 
     @decorator_inc_debug_level
-    def getks(self, info):
+    def getks(self, info=None):
+        ks_arch = self.info['KS_ARCH']
+        ks_mode = self.info['KS_MODE']
         if 'ThumbMode' in info:
             if info['ThumbMode']:
                 ks_mode = KS_MODE_THUMB;
             else:
                 ks_mode = KS_MODE_ARM;
-        else:
-            if self.thumbMode:
-                ks_mode = KS_MODE_THUMB;
-            else:
-                ks_mode = KS_MODE_ARM;
-        return Ks(self.ks_arch, ks_mode)
+        logDebug(f'ks_arch {ks_arch} KS_ARCH_ARM {KS_ARCH_ARM}')
+        logDebug(f'ks_mode {ks_mode} KS_MODE_THUMB {KS_MODE_THUMB}')
+        return Ks(ks_arch, ks_mode)
 
 
     @decorator_inc_debug_level

@@ -168,6 +168,7 @@ def insertParasite2ElfByNote(fn, bs, PAGE_SIZE=0x4000):
     return inject_address+new_ph_table_len
 
 class ELFFile(BinFile):
+    name    = 'ELFFile'
 
     # create a new cave use new program header 
     @decorator_inc_debug_level
@@ -614,12 +615,8 @@ class ELFFile(BinFile):
         BinFile.__init__(self, info);
         if self.info == None:
             self.info  = {
-                'name': self.getName(),
+                'name': self.name,
                 }
-
-    @decorator_inc_debug_level
-    def getName(self):
-        return "ELFFile"
 
     def rebuild(self):
         binary = self.binary
@@ -733,6 +730,20 @@ class ELFFile(BinFile):
         pltmap = {reloc.address : reloc.symbol.name for reloc in self.binary.pltgot_relocations}
         sec = self.binary.get_section('.plt')
         self.getArch().parsePlTSecUpdateSymol(bytes(sec.content), sec.virtual_address, pltmap, m )
+        # update *_ptr symbols
+        valMap = {}
+        for t, sym in enumerate(self.binary.symbols):
+            if sym.is_variable:
+                valMap[sym.value] = sym.name
+        # parse .got
+        sec = self.binary.get_section('.got')
+        bs = bytes(sec.content)
+        for o in range(0, len(bs), 4):
+            value = struct.unpack('I', bs[o:o+4])[0]
+            if value in valMap:
+                name = f'{valMap[value]}_ptr'
+                addr = sec.virtual_address+o
+                m[name]=addr
 
     @decorator_inc_debug_level
     def getArch(self):
