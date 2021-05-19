@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import sys
-sys.path.insert(0,"/home/mxp/work/hacking/binary_patcher/scripts/..");
 
 import os
 import json
