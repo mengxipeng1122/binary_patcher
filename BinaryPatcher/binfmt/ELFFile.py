@@ -184,7 +184,7 @@ class ELFFile(BinFile):
         e_shentsize = binary.header.section_header_size
         e_shoff     = binary.header.section_header_offset
     
-        section_header = binbs[ e_shoff: e_shoff+e_shentsize*e_shnum ]
+        # section_header = binbs[ e_shoff: e_shoff+e_shentsize*e_shnum ] # 
         program_header = binbs[ e_phoff: e_phoff+e_phentsize*e_phnum ]
     
         # get max_load_addr
@@ -202,6 +202,7 @@ class ELFFile(BinFile):
     
         # assume section header is at the end of the file, and always reduce section header
         max_load_offset = getAlignAddr(len(binbs), seg.alignment)
+        if max_load_offset >len(binbs): binbs += b'\0'*(max_load_offset-len(binbs))
             
         # new segment 
         p_type   = 1 # PT_LOAD
@@ -226,20 +227,6 @@ class ELFFile(BinFile):
             offset=0x20; binbs[offset:offset+8] = struct.pack('Q', new_e_phoff)
             offset=0x38; binbs[offset:offset+2] = struct.pack('H', new_e_phnum)
         else:  raise Exception(f' unknown ELF_CLASS {e_CLASS} ' )
-    
-    
-        if False:
-            # update ELF header 
-            if e_CLASS == lief.ELF.ELF_CLASS.CLASS32:
-                e_shoff = struct.unpack('I', binbs[0x20:0x24])[0]
-                e_shoff = len(binbs)
-                binbs[0x20:0x24] = struct.pack('I', e_shoff)
-            elif e_CLASS == lief.ELF.ELF_CLASS.CLASS64:
-                e_shoff = struct.unpack('Q', binbs[0x28:0x30])[0]
-                e_shoff = len(binbs)
-                binbs[0x28:0x30] = struct.pack('Q', e_shoff)
-            else:  raise Exception(f' unknown ELF_CLASS {e_CLASS} ' )
-            binbs += section_header
     
         # write back modified data
         self.binbs=binbs
