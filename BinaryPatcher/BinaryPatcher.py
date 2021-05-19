@@ -23,7 +23,7 @@ class BinaryPatcher(object):
     def __init__(self, info=None): # arch can inference from binary format 
         if info != None:
             self.binfmt         = bin_fmt_clzs[ info['BINFMT']['name'] ](info['BINFMT'])
-            self.arch           = arch_clsz[ info['ARCH']['name'] ](info['ARCH'])
+            self.arch           = arch_clzs[ info['ARCH']['name'] ](info['ARCH'])
             if 'CAVE_LENGTH' in info:
                 CAVE_LENGTH = info ['CAVE_LENGTH'] 
                 self.cave_length    = eval(CAVE_LENGTH) if isinstance(CAVE_LENGTH, str) else CAVE_LENGTH

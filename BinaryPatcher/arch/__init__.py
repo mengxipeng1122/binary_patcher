@@ -6,5 +6,5 @@ from .Arch  import *
 from .Arm   import *
 from .M6502 import *
 
-arch_clsz = { obj.name : obj for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and issubclass(obj, Arch) and obj.name != None }
+arch_clzs = { obj.name : obj for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and issubclass(obj, Arch) and obj.name != None }
 
