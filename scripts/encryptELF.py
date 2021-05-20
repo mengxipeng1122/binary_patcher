@@ -40,7 +40,7 @@ def main():
     if args.length == None:
         sec = binary.get_section('.text')
         args.length = sec.size
-    print(f'offset {hex(args.offset)} length {hex(args.length)} gap {args.gap}')
+    print(f'offset {args.offset} {hex(args.offset)} length  {args.length} {hex(args.length)} gap {args.gap} {args.gap}')
     for o in range(args.offset, args.offset+args.length, args.gap):
         b = bs[o]
         b ^= key0[o%len(key0)]
