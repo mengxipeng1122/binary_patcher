@@ -25,7 +25,6 @@ def main():
     parser = argparse.ArgumentParser(description='ELF encryptor ')
     parser.add_argument('-o', '--offset', help='offset the encrypt section , default is .text section offset', type=int)
     parser.add_argument('-l', '--length', help='length the encrypt section , default is .text section length', type=int)
-    parser.add_argument('-g', '--gap'   , help='gap    the encrypt section , default is 1', default=1)
     parser.add_argument('srcfn', help='source file name')
     parser.add_argument('tagfn', help='target file name')
 
@@ -40,8 +39,8 @@ def main():
     if args.length == None:
         sec = binary.get_section('.text')
         args.length = sec.size
-    print(f'offset {args.offset} {hex(args.offset)} length  {args.length} {hex(args.length)} gap {args.gap} {args.gap}')
-    for o in range(args.offset, args.offset+args.length, args.gap):
+    print(f'offset {args.offset} {hex(args.offset)} length  {args.length} {hex(args.length)} gap 1')
+    for o in range(args.offset, args.offset+args.length):
         b = bs[o]
         b ^= key0[o%len(key0)]
         b ^= key1[o%len(key1)]
@@ -52,7 +51,7 @@ def main():
     encrypt_info_offset = getAlignAddr(len(bs), 0x10)
     if encrypt_info_offset>len(bs):
         bs += b'\0' *(encrypt_info_offset-len(bs))
-    bs += struct.pack('III', args.offset, args.length, args.gap)
+    bs += struct.pack('III', args.offset, args.length, 1)
     # mod section header offset to encrypt info
     e_CLASS     = binary.header.identity_class;
     if e_CLASS == lief.ELF.ELF_CLASS.CLASS32:
@@ -60,7 +59,7 @@ def main():
     else:
         bs[0x28:0x30] = struct.pack('Q', encrypt_info_offset)
     # write magic word
-    bs[:4] = b'\xfd\xfd\xfd\xfd'
+    bs[9] = 0xff
     open(args.tagfn,'wb').write(bs)
     
         
