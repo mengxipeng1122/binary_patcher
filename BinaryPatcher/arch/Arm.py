@@ -151,7 +151,18 @@ class Arm(Arch):
                 bs[offset:offset+4] = struct.pack('I', w)
         
             elif reloc.type == 10: # R_ARM_THM_CALL
-                code = f'BLX {hex(symbol_addr)}'
+                
+                ThumbMode = False;
+                if 'ThumbMode' in self.info: ThumbMode = self.info['ThumbMode']
+                T = (S&0x1)!=0
+                if T and ThumbMode:
+                    code = f'BL {hex(symbol_addr)}'
+                elif not T and ThumbMode:
+                    code = f'BLX {hex(symbol_addr)}'
+                elif T and not ThumbMode:
+                    code = f'BLX {hex(symbol_addr)}'
+                elif not T and not ThumbMode:
+                    code = f'BL {hex(symbol_addr)}'
                 binCode, count = asmCode(ks, code, address); 
                 assert count == 1
                 ins = bytearray(binCode)
