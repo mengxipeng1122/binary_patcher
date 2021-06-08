@@ -42,10 +42,8 @@ def runCmd(cmd, showCmd =True, mustOk=False, showResult=False):
         mustOk -- if this option is True and command run failed, then raise a exception
         showResult -- show result of command
     '''
-    logDebug(f'mustOk{mustOk}')
     if showCmd:
         print (cmd)
-    logDebug(f'mustOk{mustOk}')
     ## run it ''
     result = ""
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
@@ -66,9 +64,7 @@ def runCmd(cmd, showCmd =True, mustOk=False, showResult=False):
     if stderr:
         print (f'STDERR:{stderr}')
     p_status = p.wait()
-    logDebug(f'mustOk{mustOk}')
     if mustOk:
-        logDebug(f'69 p_status {p_status}')
         if p_status !=0: raise Exception('run %s failed %d' %(cmd, p_status))
     return result
 

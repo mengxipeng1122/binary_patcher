@@ -202,6 +202,21 @@ class BytesPatchStep(PatchStep):
     def run(self, write_cave_address:list, ops:list=[]):
         ops.append(( self.start_address, bytes(self.bytes) ))
 
+class StrPatchStep(PatchStep):
+    ''' 
+        handle StrPatch
+    ''' 
+    name='StrPatch'
+    @decorator_inc_debug_level
+    def __init__(self, info, arch, binfmt, symbolMap):
+        PatchStep.__init__(self, info, arch, binfmt, symbolMap)
+        self.str  = info['str']
+
+    @decorator_inc_debug_level
+    def run(self, write_cave_address:list, ops:list=[]):
+        ops.append(( self.start_address, bytes(self.str,'utf-8')+b'\0' ))
+
+
 class HookPatchStep(PatchStep):
     ''' 
         handle HookFunPatch 
