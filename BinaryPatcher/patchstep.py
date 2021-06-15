@@ -232,6 +232,9 @@ class HookPatchStep(PatchStep):
         if 'compiler' in info: self.compiler = info['compiler']
         self.compile_flags     = self.arch.info['cflags']
         if 'cflags' in info: self.compile_flags+= ' '+info['cflags']
+        self.skipOriginInst   = False
+        if 'skipOriginInstruction' in info:
+            self.skipOriginInst   = info['skipOriginInstruction']
         self.ks = self.arch.getks(info)
         self.cs = self.arch.getcs(info)
 
@@ -275,8 +278,9 @@ class HookPatchStep(PatchStep):
         #  write restore context code
         self.putAsmCodesToCave(self.arch.getRestoreContextCode(self.info), write_cave_address, ops)
         #  write original instructions
-        fixed_original_bs = moveCode(self.cs, self.ks, original_bs, hook_address, write_cave_address[0], self.info)
-        self.writeBytesToCave(fixed_original_bs, write_cave_address, ops)
+        if not self.skipOriginInst:
+            fixed_original_bs = moveCode(self.cs, self.ks, original_bs, hook_address, write_cave_address[0], self.info)
+            self.writeBytesToCave(fixed_original_bs, write_cave_address, ops)
         #  write jmp back instructions
         inst, count = self.putAsmCodesToCave(self.arch.getJumpCode(write_cave_address[0], jump_back_address, self.info), write_cave_address, ops); assert count ==1;
 
