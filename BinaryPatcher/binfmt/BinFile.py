@@ -9,11 +9,10 @@ class BinFile( object ):
         a abstract class for all binfmtfiles class
     '''
     name    = None
-    info    = None
-    binbs   = None
 
     @decorator_inc_debug_level
     def __init__(self, info=None):
+        self.binbs   = None
         self.info  = info
 
     @decorator_inc_debug_level

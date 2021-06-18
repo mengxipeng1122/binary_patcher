@@ -9,7 +9,7 @@ from ..util.log import *
 
 class NESRomFile(BinFile):
 
-    name    = 'GBARom'
+    name    = 'NESRom'
 
     @decorator_inc_debug_level
     def __init__(self, info=None):

@@ -14,13 +14,13 @@ class BinaryPatcher(object):
     '''
         This class is responsible for many binary patcher working  
     '''
-    binfmt      = None
-    arch        = None
-    cave_length = 0
-    symbolMap   = {} # store a function/address map for later patch
-    patchesList = [] # all patches
-
     def __init__(self, info=None): # arch can inference from binary format 
+        self.binfmt      = None
+        self.arch        = None
+        self.cave_length = 0
+        self.symbolMap   = {} # store a function/address map for later patch
+        self.patchesList = [] # all patches
+
         if info != None:
             self.binfmt         = bin_fmt_clzs[ info['BINFMT']['name'] ](info['BINFMT'])
             self.arch           = arch_clzs[ info['ARCH']['name'] ](info['ARCH'])

@@ -13,11 +13,11 @@ class Arch(object):
         a abstract class for all architecture class
     '''
 
-    info            = None
     name            = None
 
     @decorator_inc_debug_level
     def __init__(self, info=None):
+        self.info            = None
         if info == None:
             info = {}
         info ['name']= self.name
