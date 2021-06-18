@@ -619,54 +619,76 @@ class ELFFile(BinFile):
         ################################################################################
         # handle ctors
         #  show origin ctors
+        INIT_ARRAY = None
+        INIT_ARRAYSZ = None
         for t, dyn in enumerate(binary.dynamic_entries): 
             if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAY: INIT_ARRAY = dyn.value
             if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAYSZ: INIT_ARRAYSZ = dyn.value
-        INIT_ARRAY_OFFSET = binary.virtual_address_to_offset(INIT_ARRAY)
-        ctors = list(struct.unpack('I'*(INIT_ARRAYSZ//4), binbs[INIT_ARRAY_OFFSET:INIT_ARRAY_OFFSET+INIT_ARRAYSZ]))
-        while 0 in ctors: ctors.remove(0)
+        ctors = None
+        if INIT_ARRAY != None and INIT_ARRAYSZ != None:
+            INIT_ARRAY_OFFSET = binary.virtual_address_to_offset(INIT_ARRAY)
+            ctors = list(struct.unpack('I'*(INIT_ARRAYSZ//4), binbs[INIT_ARRAY_OFFSET:INIT_ARRAY_OFFSET+INIT_ARRAYSZ]))
+            while 0 in ctors: ctors.remove(0)
         if 'remove_ctors' in info:
-            for hexd in info['remove_ctors']:
-                add = eval(hexd)
-                if add in ctors: ctors.remove(add)
+            if ctors != None:
+                for hexd in info['remove_ctors']:
+                    add = eval(hexd)
+                    if add in ctors: ctors.remove(add)
+            else:
+                logWarn("no ctors and remove_ctors in info")
         if 'add_ctors' in info:
-            for hexd in info['add_ctors']:
-                add = eval(hexd)
-                ctors.append(add)
-        assert len(ctors)*4 <= INIT_ARRAYSZ, f' new ctors is big than old room {ctors} {len(ctors)*4} {INIT_ARRAYSZ}' 
-        INIT_ARRAYSZ = len(ctors)*4
-        binbs[INIT_ARRAY_OFFSET:INIT_ARRAY_OFFSET+INIT_ARRAYSZ] = struct.pack('I' *(INIT_ARRAYSZ//4), *ctors)
-        sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynamic'][0]
-        sec = binary.sections[sec_id]
-        for t, dyn in enumerate(binary.dynamic_entries): 
-            if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAY: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), INIT_ARRAY)
-            if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAYSZ: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), INIT_ARRAYSZ)
+            if ctors != None:
+                for hexd in info['add_ctors']:
+                    add = eval(hexd)
+                    ctors.append(add)
+            else:
+                logWarn("no ctors and add_ctors in info")
+        if ctors != None and INIT_ARRAYSZ != None: 
+            assert len(ctors)*4 <= INIT_ARRAYSZ, f' new ctors is big than old room {ctors} {len(ctors)*4} {INIT_ARRAYSZ}' 
+            INIT_ARRAYSZ = len(ctors)*4
+            binbs[INIT_ARRAY_OFFSET:INIT_ARRAY_OFFSET+INIT_ARRAYSZ] = struct.pack('I' *(INIT_ARRAYSZ//4), *ctors)
+            sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynamic'][0]
+            sec = binary.sections[sec_id]
+            for t, dyn in enumerate(binary.dynamic_entries): 
+                if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAY: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), INIT_ARRAY)
+                if dyn.tag == lief.ELF.DYNAMIC_TAGS.INIT_ARRAYSZ: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), INIT_ARRAYSZ)
 
         ################################################################################
         # handle dtors
         #  show origin dtors
+        FINI_ARRAY = None
+        FINI_ARRAYSZ = None
         for t, dyn in enumerate(binary.dynamic_entries): 
             if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAY: FINI_ARRAY = dyn.value
             if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAYSZ: FINI_ARRAYSZ = dyn.value
-        FINI_ARRAY_OFFSET = binary.virtual_address_to_offset(FINI_ARRAY)
-        dtors = list(struct.unpack('I'*(FINI_ARRAYSZ//4), binbs[FINI_ARRAY_OFFSET:FINI_ARRAY_OFFSET+FINI_ARRAYSZ]))
-        while 0 in dtors: dtors.remove(0)
+        dtors = None
+        if FINI_ARRAY != None and FINI_ARRAYSZ != None:
+            FINI_ARRAY_OFFSET = binary.virtual_address_to_offset(FINI_ARRAY)
+            dtors = list(struct.unpack('I'*(FINI_ARRAYSZ//4), binbs[FINI_ARRAY_OFFSET:FINI_ARRAY_OFFSET+FINI_ARRAYSZ]))
+            while 0 in dtors: dtors.remove(0)
         if 'remove_dtors' in info:
-            for hexd in info['remove_dtors']:
-                add = eval(hexd)
-                if add in dtors: dtors.remove(add)
+            if dtors != None:
+                for hexd in info['remove_dtors']:
+                    add = eval(hexd)
+                    if add in dtors: dtors.remove(add)
+            else:
+                logWarn("no dtors and add_dtors in info")
         if 'add_dtors' in info:
-            for hexd in info['add_dtors']:
-                add = eval(hexd)
-                dtors.append(add)
-        assert len(dtors)*4 <= FINI_ARRAYSZ, f' new dtors is big than old room {dtors} {len(ctors)*4} {FINI_ARRAYSZ}' 
-        FINI_ARRAYSZ = len(dtors)*4
-        binbs[FINI_ARRAY_OFFSET:FINI_ARRAY_OFFSET+FINI_ARRAYSZ] = struct.pack('I' *(FINI_ARRAYSZ//4), *dtors)
-        sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynamic'][0]
-        sec = binary.sections[sec_id]
-        for t, dyn in enumerate(binary.dynamic_entries): 
-            if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAY: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), FINI_ARRAY)
-            if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAYSZ: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), FINI_ARRAYSZ)
+            if dtors != None:
+                for hexd in info['add_dtors']:
+                    add = eval(hexd)
+                    dtors.append(add)
+            else:
+                logWarn("no dtors and add_dtors in info")
+        if FINI_ARRAY != None and FINI_ARRAYSZ != None:
+            assert len(dtors)*4 <= FINI_ARRAYSZ, f' new dtors is big than old room {dtors} {len(ctors)*4} {FINI_ARRAYSZ}' 
+            FINI_ARRAYSZ = len(dtors)*4
+            binbs[FINI_ARRAY_OFFSET:FINI_ARRAY_OFFSET+FINI_ARRAYSZ] = struct.pack('I' *(FINI_ARRAYSZ//4), *dtors)
+            sec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynamic'][0]
+            sec = binary.sections[sec_id]
+            for t, dyn in enumerate(binary.dynamic_entries): 
+                if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAY: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), FINI_ARRAY)
+                if dyn.tag == lief.ELF.DYNAMIC_TAGS.FINI_ARRAYSZ: binbs[sec.offset+sec.entry_size*t:sec.offset+sec.entry_size*t+sec.entry_size] = struct.pack('II',  int(dyn.tag), FINI_ARRAYSZ)
 
         ################################################################################
         # handle remove_libraries
