@@ -314,5 +314,7 @@ class BFunPatchStep(PatchStep):
         # write jmp instruction
         logDebug(f" hook_address {hex(hook_address)}")
         logDebug(f" fun_address  {hex(fun_address )}")
-        inst, count = self.putAsmCodesToCave(self.arch.getJumpCode(hook_address, fun_address, self.info), write_cave_address, ops); assert count ==1;
-
+        code  = self.arch.getJumpCode(hook_address, fun_address, self.info);
+        inst, count = asmCode(self.ks, code, hook_address, self.info); assert count == 1;
+        ops.append( ( hook_address, inst ) )
+        
