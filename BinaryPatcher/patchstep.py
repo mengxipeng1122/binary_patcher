@@ -74,6 +74,9 @@ class PatchStep:
         '''
         bs = b""
         # write sections
+        next_write_address = getAlignAddr(write_cave_address, 0x10);
+        bs += b'\0'*(next_write_address-write_cave_address)
+        write_cave_address=next_write_address
         sectab ={}
         for i, sec in enumerate(binary.sections):
             if lief.ELF.SECTION_FLAGS.ALLOC in sec.flags_list:
@@ -105,7 +108,7 @@ class PatchStep:
         return bs, sectab, symboltab
 
     @decorator_inc_debug_level
-    def linkObjectFile(self, objfn, link_address, symboltab, info=None): 
+    def linkObjectFile(self, objfn, link_address:int, symboltab, info=None): 
         binary = lief.parse(objfn)
         bs, sectab, binary_symboltab = self.writeObjectFile(binary, link_address, info);
         symboltab.update(binary_symboltab)
