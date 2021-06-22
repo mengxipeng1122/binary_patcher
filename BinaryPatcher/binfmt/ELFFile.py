@@ -305,10 +305,10 @@ class ELFFile(BinFile):
     
     # create a new cave use new program header 
     @decorator_inc_debug_level
-    def new_cave_text_segment_end(le, fn):
+    def new_cave_text_segment_end(self,le):
         max_load_addr = 0;
-        binary = lief.parse(fn);
-        binbs  = bytearray(open(fn,'rb').read()) # read whole file content to memory 
+        binary = self.binary;
+        binbs  = self.binbs # read whole file content to memory 
         e_CLASS     = binary.header.identity_class;
         e_phnum     = binary.header.numberof_segments
         e_phentsize = binary.header.program_header_size
@@ -406,7 +406,8 @@ class ELFFile(BinFile):
                 binbs[0x28:0x30] = struct.pack('Q', e_shoff)
             else:  raise Exception(' unknown ELF_CLASS {e_CLASS} ' )
     
-        open(fn,'wb').write(binbs)
+        self.binbs=binbs
+        self.binary = lief.parse(binbs)
         return inject_address
     
     # move segment and data segment for new parasite code , 
@@ -768,7 +769,7 @@ class ELFFile(BinFile):
         elif CAVE_METHOD == NEW_CAVE_METHOD_USE_NOTE_SEGMENT:
             return new_cave_note_segment(le, fn)
         elif CAVE_METHOD == NEW_CAVE_METHOD_TEXT_SEGMENT_END:
-            return new_cave_text_segment_end(le, fn)
+            return self.new_cave_text_segment_end(le)
         elif CAVE_METHOD == NEW_CAVE_METHOD_LAST_SEGMENT_END:
             return self.new_cave_last_segment_end(le)
         elif CAVE_METHOD == NEW_CAVE_METHOD_MOVE_TEXT_DATA_SEGMENT:
