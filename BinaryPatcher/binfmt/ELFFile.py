@@ -762,17 +762,21 @@ class ELFFile(BinFile):
         raise Exception(f'unsupported machine_type {self.binary.header.machine_type } ')
 
     @decorator_inc_debug_level
-    def addCave(self, le):
+    def addCave(self, le, info=None):
         assert le>0, 'cave length should be large than zero'
-        if CAVE_METHOD == NEW_CAVE_METHOD_NEW_PROGRAM_HEADER_END:
+        CAVE_METHOD_ = CAVE_METHOD;
+        if info != None and 'cave_method' in info:
+            CAVE_METHOD_ =  info['cave_method']
+        logDebug(f" CAVE_METHOD_ {CAVE_METHOD_} {info}");
+        if CAVE_METHOD_ == NEW_CAVE_METHOD_NEW_PROGRAM_HEADER_END:
             return self.new_cave_new_program_header_end(le)
-        elif CAVE_METHOD == NEW_CAVE_METHOD_USE_NOTE_SEGMENT:
+        elif CAVE_METHOD_ == NEW_CAVE_METHOD_USE_NOTE_SEGMENT:
             return new_cave_note_segment(le, fn)
-        elif CAVE_METHOD == NEW_CAVE_METHOD_TEXT_SEGMENT_END:
+        elif CAVE_METHOD_ == NEW_CAVE_METHOD_TEXT_SEGMENT_END:
             return self.new_cave_text_segment_end(le)
-        elif CAVE_METHOD == NEW_CAVE_METHOD_LAST_SEGMENT_END:
+        elif CAVE_METHOD_ == NEW_CAVE_METHOD_LAST_SEGMENT_END:
             return self.new_cave_last_segment_end(le)
-        elif CAVE_METHOD == NEW_CAVE_METHOD_MOVE_TEXT_DATA_SEGMENT:
+        elif CAVE_METHOD_ == NEW_CAVE_METHOD_MOVE_TEXT_DATA_SEGMENT:
             return new_cave_move_text_data_segment(le, fn)
         else: raise Exception(f' unknown method {CAVE_METHOD} ')
         
