@@ -720,6 +720,24 @@ class ELFFile(BinFile):
             for t, sym in enumerate(binary.dynamic_symbols): 
                 if sym.name in info['remove_symbols']: 
                     binbs[sec.offset+entry_size*t:sec.offset+t*entry_size+entry_size] = b'\0'*entry_size
+
+        ################################################################################
+        # handle rename_symbols
+        if 'rename_symbols' in info:
+            symsec_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynsym'][0]
+            symsec = binary.sections[symsec_id]
+            dynstr_id = [b for b in range(len(binary.sections)) if binary.sections[b].name == '.dynstr'][0]
+            dynstr = binary.sections[dynstr_id]
+            for t, sym in enumerate(binary.dynamic_symbols):
+                if sym.name == 'pthread_mutex_init': logDebug(f"{sym.name} => {info['rename_symbols']}");
+                if sym.name in info['rename_symbols']:
+                    sym0 = sym.name
+                    sym1 = info['rename_symbols'][sym.name]
+                    assert len(sym1)<=len(sym0), 'The length of sym1 should be less than or equal to the length of sym0'
+                    # TODO only handle for 32bit now 
+                    symoffset = struct.unpack('I', bytes(symsec.content[t*0x10:t*0x10+4]))[0]
+                    binbs[dynstr.offset+symoffset:dynstr.offset+symoffset+len(sym1)+1] = bytes(sym1,'utf-8') + b'\0'
+
         self.binbs = binbs
 
     @decorator_inc_debug_level
