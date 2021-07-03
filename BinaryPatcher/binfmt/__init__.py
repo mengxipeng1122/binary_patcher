@@ -11,6 +11,7 @@ bin_fmt_clzs = { obj.name : obj for name, obj in inspect.getmembers(sys.modules[
 
 bin_fmt_magic_map =  {
         'application/x-sharedlib' : ELFFile,
+        'ELF 32-bit LSB executable, ARM, EABI5 version 1 (SYSV)' : ELFFile,  # Mac OS 
         'application/x-gba-rom'   : GBARomFile ,
         'application/x-nes-rom'   : NESRomFile ,
 }
