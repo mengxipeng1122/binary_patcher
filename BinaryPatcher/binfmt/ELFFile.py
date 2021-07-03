@@ -348,8 +348,6 @@ class ELFFile(BinFile):
         # update gap data
         old_gap_data = binbs[text_seg.file_offset+len(text_seg.content):data_seg.file_offset]
     
-        if(len(old_gap_data) > le): return inject_address
-    
         # use whole gap
         #new_gap_data = b'\0'* (data_seg.virtual_size-text_seg.virtual_size-len(text_seg.content))
         new_data_offset = text_seg.file_offset+(data_seg.virtual_address-text_seg.virtual_address)
