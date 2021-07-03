@@ -21,6 +21,8 @@ class Arch(object):
         if info == None:
             info = {}
         info ['name']= self.name
+        info ['compiler']= None
+        info ['cflags']= ""
         self.info  = info
         
     @decorator_inc_debug_level
