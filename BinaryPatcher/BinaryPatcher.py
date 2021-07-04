@@ -95,7 +95,7 @@ class BinaryPatcher(object):
         obj.run(self.write_cave_address, run_result)
         for address, binaries in run_result:
             logInfo(f'<+> {hex(address)} {binaries} {hex(self.write_cave_address[0])}')
-            self.binfmt.patch(address,binaries)
+            self.binfmt.patch(self.arch.alignAddressForAccess(address),binaries)
 
     @decorator_inc_debug_level
     def run_patch(self, patch, info=None):

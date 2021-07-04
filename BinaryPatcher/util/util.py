@@ -9,27 +9,24 @@ from .log import *
 
 @decorator_inc_debug_level
 def getAlignAddr(o, align=4):
-  '''
-This function get a aligned address 
-  '''
-  o = int(math.ceil(o*1./align)*align)
-  return o
+    '''
+      This function get a aligned address 
+    '''
+    o = int(math.ceil(o*1./align)*align)
+    return o
 
 
 @decorator_inc_debug_level
 def getStr(s, READNAMELEN=80):
-  '''
-This function get a string from bytes
-must return string 
-Parameter:
-  s -- input bytes
-  READNAMELEN -- assume the size of result string is not larger then READNAMELEN
-  '''
-  idx = s[:READNAMELEN].find(b'\0')
-  return s[:idx].decode('utf-8')
-
-
-
+    '''
+        This function get a string from bytes
+        must return string 
+        Parameter:
+            s -- input bytes
+            READNAMELEN -- assume the size of result string is not larger then READNAMELEN
+    '''
+    idx = s[:READNAMELEN].find(b'\0')
+    return s[:idx].decode('utf-8')
 
 @decorator_inc_debug_level
 def runCmd(cmd, showCmd =True, mustOk=False, showResult=False):
@@ -67,37 +64,4 @@ def runCmd(cmd, showCmd =True, mustOk=False, showResult=False):
     if mustOk:
         if p_status !=0: raise Exception('run %s failed %d' %(cmd, p_status))
     return result
-
-@decorator_inc_debug_level
-def asmCode(ks, code, address=0, info=None):
-    binCode, count = ks.asm(code, address); 
-    return bytes(binCode), count
-
-@decorator_inc_debug_level
-def disasmCode(cs, inst, address=0, info=None):
-    codes = ""
-    for i in cs.disasm(inst, address): 
-        codes += f'{i.mnemonic}\t {i.op_str}\n'
-    return codes
-
-@decorator_inc_debug_level
-def isValidInstructions(cs, ks, bs, address, info=None):
-    ''' 
-        this function check whether the given bytes is a complete code, 
-    ''' 
-    codes = disasmCode(cs, bs, address, info);
-    binCode, count = ks.asm(codes, address, info)
-    if binCode == None: return False;
-    return bs == bytes(binCode);
-
-@decorator_inc_debug_level
-def moveCode(cs, ks, bs, from_address, to_address, info=None):
-    ''' 
-        this function check whether the given bytes is a complete code, 
-    ''' 
-    codes = disasmCode(cs, bs, from_address, info);
-    binCode, count = ks.asm(codes, to_address, info)
-    assert binCode!=None, f'binCode equals to None'
-    return bytes(binCode)
-
 

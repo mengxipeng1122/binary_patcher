@@ -9,65 +9,62 @@ from ..util.log import *
 from ..util.util import *
 from .Arch import *
 
+# if address & 1 != 0 , the current instruction is thumb instruction 
+#    or the current intruction is arm instrction
+
 class Arm(Arch):
     name            = 'ARM'
 
     @decorator_inc_debug_level
     def __init__(self, info=None):
-        Arch.__init__(self, info)
-        if 'ThumbMode' not in self.info: self.info ['ThumbMode'] = False;
-        if 'compiler'  not in self.info: self.info ['compiler' ] = 'arm-linux-gnueabihf-gcc'
-        if 'KS_ARCH'   not in self.info: self.info['KS_ARCH'] = KS_ARCH_ARM;
-        if 'CS_ARCH'   not in self.info: self.info['CS_ARCH'] = CS_ARCH_ARM;
-        if self.info['ThumbMode']:
-            self.info['KS_MODE'] = KS_MODE_THUMB;
-            self.info['CS_MODE'] = CS_MODE_THUMB;
+        Arch.__init__(self)
+        self.compiler = 'arm-linux-gnueabihf-gcc'
+        self.loadInfo(info);
+
+    @decorator_inc_debug_level
+    def getNopInstruction(self, address):
+        return self.asmCode("nop", address);  
+
+    @decorator_inc_debug_level
+    def getJumpInstruction(self, from_address, to_address, info=None): 
+        code = f"B {hex(to_address)}"
+        logDebug(f' {hex(from_address)} -> {hex(to_address),}, {code}')
+        return self.asmCode(code, from_address, info)
+
+    @decorator_inc_debug_level
+    def getCallInstruction(self, caller_address, callee_address, info=None): 
+        caller_thumMode   = caller_address & 0x1;
+        callee_thumbMode  = callee_address & 0x1;
+        if caller_thumMode + callee_thumbMode == 1:
+            code = f"BLX {hex(callee_address)}"
         else:
-            self.info['KS_MODE'] = KS_MODE_ARM;
-            self.info['CS_MODE'] = CS_MODE_ARM;
+            code = f"BL  {hex(callee_address)}"
+        if info != None and 'thumbMode' in info:
+            code = f"BL  {hex(callee_address)}"
+        return self.asmCode(code, caller_address, info)
 
-    @decorator_inc_debug_level
-    def updateThumbMode(self):
-        if self.info['ThumbMode']:
-            self.info['KS_MODE'] = KS_MODE_THUMB;
-            self.info['CS_MODE'] = CS_MODE_THUMB;
-        else:
-            self.info['KS_MODE'] = KS_MODE_ARM;
-            self.info['CS_MODE'] = CS_MODE_ARM;
-
-
-    @decorator_inc_debug_level
-    def getNopCode(self, info=None):
-        return "nop"
-
-    @decorator_inc_debug_level
-    def getJumpCode(self, from_address, to_address,info=None): 
-        return f"B {hex(to_address)}"
-
-    @decorator_inc_debug_level
-    def getCallCode(self, caller_address, callee_address, info=None): 
-        return f"BL {hex(callee_address)}"
-
-    def getSaveContextCode(self, info=None): 
-        return """
+    def getSaveContextInstruction(self, address, info=None): 
+        code = """
                     PUSH \t {LR};
                     PUSH \t {R0-R7};
                     PUSH \t {R8-R12}; 
                     MRS  \t LR, CPSR;
                     PUSH \t {LR};
                 """
+        return self.asmCode(code, address, info)
 
-    def getRestoreContextCode(self, info=None): 
-        return """
+    def getRestoreContextInstruction(self, address, info=None): 
+        code = """
                     POP  \t {LR};
                     MSR  \t CPSR, LR;
                     POP  \t {R8-R12}; 
                     POP  \t {R0-R7};
                     POP  \t {LR};
                   """
+        return self.asmCode(code, address, info)
 
     @decorator_inc_debug_level
-    def parsePlTSecUpdateSymol(self, sec, address, pltmap, m, info=None):
+    def parsePlTSecUpdateSymol(self, sec, address, pltmap, m):
         # trick get __GLOBAL_OFFSET_TABLE_ address
         ins0, ins1, ins2, ins3, ins4 = struct.unpack('IIIII', sec[0x00:0x14])
         if 0xe52de004 == ins0 and 0xe59fe004 == ins1 and 0xe08fe00e == ins2 and 0xe5bef008 == ins3:
@@ -88,37 +85,19 @@ class Arm(Arch):
                     m[symbolname] = address + o 
 
     @decorator_inc_debug_level
-    def compileObjectFile(self, srcfn, objfn, workdir, compiler, compile_flags, info):
-        if 'ThumbMode' in info:
-            if info['ThumbMode']:
-                compile_flags += ' -mthumb'
-            else:
-                compile_flags += ' -marm'
+    def compileObjectFile(self, address, srcfn, objfn, workdir, compiler, compile_flags, info=None):
+        thumbMode = address & 1 != 0
+        if info!=None and 'thumbMode' in info:
+            thumbMode = info['thumbMode']
+        if thumbMode:
+            compile_flags += ' -mthumb'
         else:
-            if self.thumbMode:
-                compile_flags += ' -mthumb'
-            else:
-                compile_flags += ' -marm'
-        Arch.compileObjectFile(self, srcfn, objfn, workdir, compiler, compile_flags, info)
-
+            compile_flags += ' -marm'
+        Arch.compileObjectFile(self, address, srcfn, objfn, workdir, compiler, compile_flags, info)
 
     @decorator_inc_debug_level
-    def getks(self, info=None):
-        ks_arch = self.info['KS_ARCH']
-        ks_mode = self.info['KS_MODE']
-        if 'ThumbMode' in info:
-            if info['ThumbMode']:
-                ks_mode = KS_MODE_THUMB;
-            else:
-                ks_mode = KS_MODE_ARM;
-        logDebug(f'ks_arch {ks_arch} KS_ARCH_ARM {KS_ARCH_ARM}')
-        logDebug(f'ks_mode {ks_mode} KS_MODE_THUMB {KS_MODE_THUMB}')
-        return Ks(ks_arch, ks_mode)
-
-
-    @decorator_inc_debug_level
-    def dolink(self, bs, link_address, symboltab, relocs, sectab, info):
-        ks = self.getks(info)
+    def dolink(self, bs, link_address, symboltab, relocs, sectab, info=None):
+        ks = self.getKs(link_address, info)
         bs = bytearray(bs)
         # write bytes for link 
         for reloc in relocs:
@@ -152,18 +131,19 @@ class Arm(Arch):
         
             elif reloc.type == 10: # R_ARM_THM_CALL
                 
-                ThumbMode = False;
-                if 'ThumbMode' in self.info: ThumbMode = self.info['ThumbMode']
+                thumbMode = False;
+                if 'thumbMode' in info: thumbMode = info['thumbMode']
                 T = (S&0x1)!=0
-                if T and ThumbMode:
+                if T and thumbMode:
                     code = f'BL {hex(symbol_addr)}'
-                elif not T and ThumbMode:
+                elif not T and thumbMode:
                     code = f'BLX {hex(symbol_addr)}'
-                elif T and not ThumbMode:
+                elif T and not thumbMode:
                     code = f'BLX {hex(symbol_addr)}'
-                elif not T and not ThumbMode:
+                elif not T and not thumbMode:
                     code = f'BL {hex(symbol_addr)}'
-                binCode, count = asmCode(ks, code, address); 
+                logDebug(f' {thumbMode}  {T}-> {code}, {info}')
+                binCode, count = self.asmCode(code, address, info); 
                 assert count == 1
                 ins = bytearray(binCode)
                 bs[offset:offset+len(ins)] = ins
@@ -223,11 +203,36 @@ class Arm(Arch):
         return (bytes(bs), symboltab['fun'] & 0xffffffff if 'fun' in symboltab else None )
 
     @decorator_inc_debug_level
-    def alignCodeAddress(self, address):
-        return self.alignAddress(address,0xfffffffe)
+    def getKs(self , address, info=None):
+        thumbMode = address & 0x1 != 0
+        if info != None and 'thumbMode' in info:
+            thumbMode = info['thumbMode']
+        if thumbMode:
+            ks = Ks(KS_MODE_ARM, KS_MODE_THUMB)
+        else:
+            ks = Ks(KS_MODE_ARM, KS_MODE_ARM)
+        return ks
 
     @decorator_inc_debug_level
-    def alignDataAddress(self, address):
-        return self.alignAddress(address,0xfffffffc)
+    def getCs(self , address, info=None):
+        thumbMode = address & 0x10;
+        if info != None and 'thumbMode' in info:
+            thumbMode = info['thumbMode']
+        if thumbMode:
+            cs = Cs(CS_MODE_ARM, CS_MODE_THUMB)
+        else:
+            cs = Cs(CS_MODE_ARM, CS_MODE_ARM)
+        return cs
 
+    @decorator_inc_debug_level
+    def alignAddressForAccess(self, address:int):
+        return address & 0xfffffffe;
+
+    def compileSrc(self, srcfn, address, compiler, compile_flags, symbolMap, info=None):
+        thumbMode = address&0x1 != 0
+        if info != None and 'thumbMode' in info:
+            thumbMode = info['thumbMode']
+        if thumbMode: compile_flags += ' -mthumb'
+        else : compile_flags += ' -marm'
+        return Arch.compileSrc(self, srcfn, address, compiler, compile_flags, symbolMap, info);
 

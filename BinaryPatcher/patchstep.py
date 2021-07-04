@@ -46,21 +46,15 @@ class PatchStep:
 
     @decorator_inc_debug_level
     def putAsmCodesToCave(self, code, write_cave_address:list, ops:list):
-        inst, count = asmCode(self.ks, code, write_cave_address[0], self.info);
+        inst, count = self.arch.asmCode(code, write_cave_address[0], self.info);
         self.writeBytesToCave(inst, write_cave_address, ops)
         return inst, count
 
     @decorator_inc_debug_level
     def compileSrcToCave(self, write_cave_address:list, ops:list, extera_compile_flags=""):
-        write_cave_address[0] = self.arch.alignCodeAddress(write_cave_address[0])
-        objfn = os.path.join('/tmp', os.path.basename(f'{self.srcfn}.o'))
-        workdir = os.path.dirname(self.srcfn)
-        if workdir == ' '*len(workdir): workdir = '.'
-        cmd = f'cd {workdir}  && pwd && {self.compiler} -c -Wall -Werror -I.  {self.compile_flags} {extera_compile_flags} -o {objfn} {self.srcfn}'
-        logDebug(f'go here')
-        runCmd(cmd, showCmd=True, mustOk=True);
-        logDebug(f'go here')
-        bs, fun_addr = self.linkObjectFile(objfn, write_cave_address[0], self.symbolMap, self.info);
+        src_addr = write_cave_address[0]
+        objfn = self.arch.compileSrc(self.srcfn, src_addr, self.compiler, self.compile_flags, self.symbolMap, self.info);
+        bs, fun_addr = self.linkObjectFile(objfn, src_addr, self.symbolMap);
         self.writeBytesToCave(bs, write_cave_address, ops)
         return fun_addr
 
@@ -108,12 +102,12 @@ class PatchStep:
         return bs, sectab, symboltab
 
     @decorator_inc_debug_level
-    def linkObjectFile(self, objfn, link_address:int, symboltab, info=None): 
+    def linkObjectFile(self, objfn, link_address:int, symboltab): 
         binary = lief.parse(objfn)
-        bs, sectab, binary_symboltab = self.writeObjectFile(binary, link_address, info);
+        bs, sectab, binary_symboltab = self.writeObjectFile(binary, link_address);
         symboltab.update(binary_symboltab)
         logDebug(f'sectab {sectab}')
-        return self.arch.dolink( bs, link_address, symboltab, binary.object_relocations, sectab,  info)
+        return self.arch.dolink( bs, link_address, symboltab, binary.object_relocations, sectab, self.info)
 
 
 
@@ -231,43 +225,39 @@ class HookPatchStep(PatchStep):
         self.offset            = eval(info['offset']) if 'offset' in info else 0
         self.srcfn             = info['src']
         self.hook_address      = self.start_address
-        self.compiler          = self.arch.info['compiler']
+        self.compiler          = self.arch.compiler
         if 'compiler' in info: self.compiler = info['compiler']
-        self.compile_flags     = self.arch.info['cflags']
+        self.compile_flags     = self.arch.cflags
         if 'cflags' in info: self.compile_flags+= ' '+info['cflags']
-        self.skipOriginInst   = False
+        self.skipOriginInst    = False
         if 'skipOriginInstruction' in info:
             self.skipOriginInst   = info['skipOriginInstruction']
-        self.ks = self.arch.getks(info)
-        self.cs = self.arch.getcs(info)
+        self.info              = info;
 
     def run(self, write_cave_address:list, ops:list=[]):
-        hook_address = self.arch.alignCodeAddress(self.start_address)
+        hook_address = (self.start_address)
 
-        logDebug(f'')
         fun_address = self.compileSrcToCave(write_cave_address, ops,f'-D HOOK_ADDRESS={hex(hook_address)}')
-        logDebug(f'')
 
-        stub_address = write_cave_address[0] = self.arch.alignCodeAddress(write_cave_address[0])
-        nop_ins,count = asmCode(self.ks, self.arch.getNopCode(self.info)); assert count ==1;
+        stub_address = write_cave_address[0] 
         # write jmp stub instructions
-        jmp_stub_inst, count = asmCode(self.ks, self.arch.getJumpCode(hook_address, stub_address, self.info), hook_address); assert count ==1;
+        jmp_stub_inst, count = self.arch.getJumpInstruction(hook_address, stub_address, self.info); assert count ==1;
         # read original instructions 
+        MAX_ORIGINAL_INSTR_LEN=0x20;
         jmp_stub_bs = jmp_stub_inst
         original_bs = b''
         while True:
             le_jmp_stub_bs = len(jmp_stub_bs)
             le_original_bs = len(original_bs)
-            if le_jmp_stub_bs > 0x20: raise  Exception('many trails for jump stub instruction')
-            if le_original_bs > 0x20: raise  Exception('many trails for jump stub instruction')
-            if isValidInstructions(self.cs, self.ks, original_bs, hook_address):
-                if le_jmp_stub_bs == le_original_bs: break
+            if le_jmp_stub_bs > MAX_ORIGINAL_INSTR_LEN: raise  Exception('many trails for jump stub instruction')
+            if le_original_bs > MAX_ORIGINAL_INSTR_LEN: raise  Exception('many trails for jump stub instruction')
+            if self.arch.isValidInstructions(original_bs, hook_address, self.info) and le_jmp_stub_bs == le_original_bs:
+                 break
             if le_jmp_stub_bs > le_original_bs:
-                original_bs = self.binfmt.readByte(hook_address, le_original_bs+1)
-                continue
+                original_bs = self.binfmt.readByte(self.arch.alignAddressForAccess(hook_address), le_original_bs+1)
             else:
+                nop_ins, count = self.arch.getNopInstruction(hook_address+len(le_jmp_stub_bs), self.info); assert count ==1;
                 jmp_stub_bs += nop_ins
-                continue
         ops.append( ( hook_address, jmp_stub_bs ) )
 
         jump_back_address = hook_address+len(jmp_stub_bs);
@@ -275,17 +265,21 @@ class HookPatchStep(PatchStep):
         ################################################################################ 
         # write stub  
         #  write save context code
-        self.putAsmCodesToCave(self.arch.getSaveContextCode(self.info), write_cave_address, ops)
+        inst, count = self.arch.getSaveContextInstruction( write_cave_address[0], self.info)
+        self.writeBytesToCave(inst, write_cave_address, ops)
         #  write call function code
-        inst, count = self.putAsmCodesToCave(self.arch.getCallCode(write_cave_address[0], fun_address, self.info), write_cave_address, ops); assert count ==1
+        inst, count = self.arch.getCallInstruction(write_cave_address[0], fun_address, self.info ); assert count ==1
+        count = self.writeBytesToCave(inst, write_cave_address, ops); 
         #  write restore context code
-        self.putAsmCodesToCave(self.arch.getRestoreContextCode(self.info), write_cave_address, ops)
+        inst, count = self.arch.getRestoreContextInstruction(write_cave_address[0], self.info)
+        self.writeBytesToCave(inst, write_cave_address, ops)
         #  write original instructions
         if not self.skipOriginInst:
-            fixed_original_bs = moveCode(self.cs, self.ks, original_bs, hook_address, write_cave_address[0], self.info)
+            fixed_original_bs = self.arch.moveCode(original_bs, hook_address, write_cave_address[0], self.info)
             self.writeBytesToCave(fixed_original_bs, write_cave_address, ops)
         #  write jmp back instructions
-        inst, count = self.putAsmCodesToCave(self.arch.getJumpCode(write_cave_address[0], jump_back_address, self.info), write_cave_address, ops); assert count ==1;
+        inst, count = self.arch.getJumpInstruction(write_cave_address[0], jump_back_address, self.info); assert count ==1;
+        self.writeBytesToCave(inst, write_cave_address, ops)
 
 class BFunPatchStep(PatchStep):
     ''' 
