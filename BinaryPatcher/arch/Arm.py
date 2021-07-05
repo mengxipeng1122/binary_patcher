@@ -9,9 +9,6 @@ from ..util.log import *
 from ..util.util import *
 from .Arch import *
 
-# if address & 1 != 0 , the current instruction is thumb instruction 
-#    or the current intruction is arm instrction
-
 class Arm(Arch):
     name            = 'ARM'
 
@@ -36,7 +33,7 @@ class Arm(Arch):
 
     @decorator_inc_debug_level
     def getCallInstruction(self, caller_address, callee_address, info=None): 
-        caller_thumMode   = caller_address & 0x1;
+        caller_thumMode   = self.thumbMode
         callee_thumbMode  = callee_address & 0x1;
         if caller_thumMode + callee_thumbMode == 1:
             code = f"BLX {hex(callee_address)}"
@@ -134,7 +131,7 @@ class Arm(Arch):
         
             elif reloc.type == 10: # R_ARM_THM_CALL
                 
-                thumbMode = False;
+                thumbMode = self.thumbMode
                 if 'thumbMode' in info: thumbMode = info['thumbMode']
                 T = (S&0x1)!=0
                 if T and thumbMode:
@@ -232,7 +229,7 @@ class Arm(Arch):
         return address & 0xfffffffe;
 
     def compileSrc(self, srcfn, address, compiler, compile_flags, symbolMap, info=None):
-        thumbMode = address&0x1 != 0
+        thumbMode = self.thumbMode
         if info != None and 'thumbMode' in info:
             thumbMode = info['thumbMode']
         if thumbMode: compile_flags += ' -mthumb'
