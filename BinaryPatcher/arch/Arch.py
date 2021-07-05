@@ -19,8 +19,8 @@ class Arch(object):
 
     @decorator_inc_debug_level
     def __init__(self):
-        self.compiler = None
-        self.cflags   = ""
+        self.compiler       = None
+        self.compile_flags  = ""
 
     @decorator_inc_debug_level
     def loadInfo(self, info=None):
@@ -34,7 +34,7 @@ class Arch(object):
                     setattr(self, k, info[k])
         
     @decorator_inc_debug_level
-    def getNopInstruction(self, address):
+    def getNopInstruction(self, address, info=None):
         raise NotImplementedError( "Should have implemented this method" )
 
     def getJumpInstruction(self, from_address, to_address, info=None): 
@@ -91,8 +91,12 @@ class Arch(object):
             this function check whether the given bytes is a complete code, 
         ''' 
         ks = self.getKs(address, info)
+        print(ks._arch, ks._mode)
+        logDebug(f"ks {ks}")
         codes = self.disasmCode( inst, address, info);
+        logDebug(f"codes {codes}")
         binCode, count = ks.asm(codes, address)
+        logDebug(f"binCode {binCode} {count}")
         if binCode == None: return False;
         return inst == bytes(binCode);
 

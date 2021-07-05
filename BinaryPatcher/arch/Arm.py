@@ -19,14 +19,17 @@ class Arm(Arch):
     def __init__(self, info=None):
         Arch.__init__(self)
         self.compiler = 'arm-linux-gnueabihf-gcc'
+        self.thumbMode = False
         self.loadInfo(info);
 
     @decorator_inc_debug_level
-    def getNopInstruction(self, address):
-        return self.asmCode("nop", address);  
+    def getNopInstruction(self, address, info=None):
+        return self.asmCode("nop", address, info);  
 
     @decorator_inc_debug_level
     def getJumpInstruction(self, from_address, to_address, info=None): 
+        from_address = self.alignAddressForAccess(from_address)
+        to_address   = self.alignAddressForAccess(to_address  )
         code = f"B {hex(to_address)}"
         logDebug(f' {hex(from_address)} -> {hex(to_address),}, {code}')
         return self.asmCode(code, from_address, info)
@@ -86,7 +89,7 @@ class Arm(Arch):
 
     @decorator_inc_debug_level
     def compileObjectFile(self, address, srcfn, objfn, workdir, compiler, compile_flags, info=None):
-        thumbMode = address & 1 != 0
+        thumbMode = self.thumbMode;
         if info!=None and 'thumbMode' in info:
             thumbMode = info['thumbMode']
         if thumbMode:
@@ -204,7 +207,7 @@ class Arm(Arch):
 
     @decorator_inc_debug_level
     def getKs(self , address, info=None):
-        thumbMode = address & 0x1 != 0
+        thumbMode = self.thumbMode
         if info != None and 'thumbMode' in info:
             thumbMode = info['thumbMode']
         if thumbMode:
@@ -215,7 +218,7 @@ class Arm(Arch):
 
     @decorator_inc_debug_level
     def getCs(self , address, info=None):
-        thumbMode = address & 0x10;
+        thumbMode = self.thumbMode
         if info != None and 'thumbMode' in info:
             thumbMode = info['thumbMode']
         if thumbMode:

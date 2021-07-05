@@ -176,10 +176,10 @@ class ParasitePatchStep(PatchStep):
         PatchStep.__init__(self, info, arch, binfmt, symbolMap)
         self.offset             = eval(info['offset']) if 'offset' in info else 0
         self.srcfn              = info['src']
-        self.compiler           = self.arch.info['compiler']
+        self.compiler           = self.arch.compiler
         if 'compiler' in info: self.compiler = info['compiler']
-        self.compile_flags      = self.arch.info['cflags']
-        if 'cflags' in info: self.compile_flags+=f' {info["cflags"]}'
+        self.compile_flags      = self.arch.compile_flags
+        if 'compile_flags' in info: self.compile_flags+=f' {info["compile_flags"]}'
 
     @decorator_inc_debug_level
     def run(self, write_cave_address:list, ops:list=[]):
@@ -227,8 +227,8 @@ class HookPatchStep(PatchStep):
         self.hook_address      = self.start_address
         self.compiler          = self.arch.compiler
         if 'compiler' in info: self.compiler = info['compiler']
-        self.compile_flags     = self.arch.cflags
-        if 'cflags' in info: self.compile_flags+= ' '+info['cflags']
+        self.compile_flags     = self.arch.compile_flags
+        if 'compile_flags' in info: self.compile_flags+= ' '+info['compile_flags']
         self.skipOriginInst    = False
         if 'skipOriginInstruction' in info:
             self.skipOriginInst   = info['skipOriginInstruction']
@@ -251,12 +251,13 @@ class HookPatchStep(PatchStep):
             le_original_bs = len(original_bs)
             if le_jmp_stub_bs > MAX_ORIGINAL_INSTR_LEN: raise  Exception('many trails for jump stub instruction')
             if le_original_bs > MAX_ORIGINAL_INSTR_LEN: raise  Exception('many trails for jump stub instruction')
-            if self.arch.isValidInstructions(original_bs, hook_address, self.info) and le_jmp_stub_bs == le_original_bs:
-                 break
+            if le_jmp_stub_bs == le_original_bs:
+                if self.arch.isValidInstructions(original_bs, hook_address, self.info):
+                    break
             if le_jmp_stub_bs > le_original_bs:
                 original_bs = self.binfmt.readByte(self.arch.alignAddressForAccess(hook_address), le_original_bs+1)
             else:
-                nop_ins, count = self.arch.getNopInstruction(hook_address+len(le_jmp_stub_bs), self.info); assert count ==1;
+                nop_ins, count = self.arch.getNopInstruction(hook_address+le_jmp_stub_bs, self.info); assert count ==1;
                 jmp_stub_bs += nop_ins
         ops.append( ( hook_address, jmp_stub_bs ) )
 
@@ -290,28 +291,26 @@ class BFunPatchStep(PatchStep):
     def __init__(self, info, arch, binfmt, symbolMap):
         PatchStep.__init__(self, info, arch, binfmt, symbolMap)
         self.srcfn             = info['src']
-        self.compiler          = self.arch.info['compiler']
+        self.compiler          = self.arch.compiler
         if 'compiler' in info: self.compiler = info['compiler']
-        self.compile_flags     = self.arch.info['cflags']
-        if 'cflags' in info: self.compile_flags+= ' '+info['cflags']
-        self.ks = self.arch.getks(info)
-        self.cs = self.arch.getcs(info)
+        self.compile_flags     = self.arch.compile_flags
+        if 'compile_flags' in info: self.compile_flags+= ' '+info['compile_flags']
+        self.ks = self.arch.getKs(info)
+        self.cs = self.arch.getCs(info)
 
     def run(self, write_cave_address:list, ops:list=[]):
-        hook_address = self.arch.alignCodeAddress(self.start_address)
+        hook_address = self.start_address
 
         logDebug(f'')
         fun_address = self.compileSrcToCave(write_cave_address, ops,f'-D FUN_ADDRESS={hex(hook_address)}')
-        fun_address = self.arch.alignCodeAddress(fun_address)
         logDebug(f'')
 
-        stub_address = write_cave_address[0] = self.arch.alignCodeAddress(write_cave_address[0])
-        nop_ins,count = asmCode(self.ks, self.arch.getNopCode(self.info)); assert count ==1;
+        stub_address = write_cave_address[0]
+        #nop_ins,count = self.arch.asmCode( self.arch.getNopInstruction(self.info)); assert count ==1;
         ################################################################################ 
         # write jmp instruction
         logDebug(f" hook_address {hex(hook_address)}")
         logDebug(f" fun_address  {hex(fun_address )}")
-        code  = self.arch.getJumpCode(hook_address, fun_address, self.info);
-        inst, count = asmCode(self.ks, code, hook_address, self.info); assert count == 1;
+        inst, count = self.arch.getJumpInstruction(hook_address, fun_address, self.info); assert count ==1;
         ops.append( ( hook_address, inst ) )
         
