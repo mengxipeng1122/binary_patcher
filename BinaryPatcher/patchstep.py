@@ -120,20 +120,16 @@ class NopPatchStep(PatchStep):
     @decorator_inc_debug_level
     def __init__(self, info, arch, binfmt, symbolMap):
         PatchStep.__init__(self, info, arch, binfmt, symbolMap)
-        self.ks = self.arch.getks(info)
          
     @decorator_inc_debug_level
     def run(self, write_cave_address:list, ops:list=[]):
         # prepare all code 
-        if self.start_address != None: self.start_address =self.arch.alignCodeAddress(self.start_address)
-        if self.end_address != None:   self.end_address   = self.arch.alignCodeAddress(self.end_address)
-        nopCode, count =  asmCode(self.ks, self.arch.getNopCode(self.info), self.start_address)
-        assert count == 1
+        nop_ins, count = self.arch.getNopInstruction(self.start_address, self.info); assert count ==1;
         if  self.end_address == None:
-            ops.append(( self.start_address, nopCode))
+            ops.append(( self.start_address, nop_ins))
         else:
-            for addr in range(self.start_address, self.end_address, len(nopCode)):
-                ops.append(( addr, nopCode))
+            for addr in range(self.start_address, self.end_address, len(nop_ins)):
+                ops.append(( addr, nop_ins))
 
 class AsmPatchStep(PatchStep):
     ''' 
@@ -143,23 +139,16 @@ class AsmPatchStep(PatchStep):
     @decorator_inc_debug_level
     def __init__(self, info, arch, binfmt, symbolMap):
         PatchStep.__init__(self, info, arch, binfmt, symbolMap)
-        logDebug(" go here ");
-        self.ks = self.arch.getks(info)
-        logDebug(f" go here {self.ks}");
         self.asm = info['asm']
          
     @decorator_inc_debug_level
     def run(self, write_cave_address:list, ops:list=[]):
         # prepare all code 
-        self.start_address = self.arch.alignCodeAddress(self.start_address)
-        nopCode, count =  asmCode(self.ks, self.arch.getNopCode(self.info), self.start_address)
-        assert count == 1
         addr = self.start_address
         for code in self.asm:
             logDebug(f'code {code}')
             code = self.subSymbol(code)
-            logDebug(f'code {code} {self.ks}')
-            inst, count = asmCode(self.ks, code, addr)
+            inst, count = self.arch.asmCode( code, addr, self.info); assert count ==1;
             logDebug(" go here ");
             assert count == 1
             ops.append(( addr, inst ))
