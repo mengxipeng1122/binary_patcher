@@ -4,6 +4,7 @@
 import sys
 import os
 import lief
+import re
 from keystone import *
 from capstone import *
 
@@ -30,6 +31,10 @@ class PatchStep:
     def subSymbol(self,text):
         for k, v in self.symbolMap.items():
             text = text.replace('%{'+k+'}%', hex(v))
+        m = re.findall('%{sub_[0-9A-Fa-f]*}%', text)
+        for t in m:
+            tc = f'0x{t[6:-2]}'
+            text = text.replace(t, tc)
         return text
 
     @decorator_inc_debug_level
@@ -106,7 +111,6 @@ class PatchStep:
         binary = lief.parse(objfn)
         bs, sectab, binary_symboltab = self.writeObjectFile(binary, link_address);
         symboltab.update(binary_symboltab)
-        logDebug(f'sectab {sectab}')
         return self.arch.dolink( bs, link_address, symboltab, binary.object_relocations, sectab, self.info)
 
 
